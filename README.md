@@ -13,6 +13,42 @@ faster than Hamilton at Monza?"* with numbers it could not reliably work out on 
 
 Every design decision, and why it was made, is logged in [`journal/`](journal/).
 
+## Example conversation
+
+A real exchange in Claude Code with the server connected (excerpt, lightly trimmed):
+
+> **You:** Who was really faster at the 2025 Italian Grand Prix in Monza, Leclerc or Hamilton?
+> Use the f1-mcp tools and explain the numbers.
+>
+> **Claude:** *(called f1-mcp 6 times: sessions, drivers, results, pace comparison and stints,
+> for both the race and qualifying)*
+>
+> Leclerc was faster, by about 0.1–0.2 s per lap on a fair comparison. That's a smaller margin
+> than the 11.8 s gap at the flag suggests.
+
+```
+                            Leclerc (#16)        Hamilton (#44)       Gap
+Qualifying                  P4, 1:19.007         P5, 1:19.124         LEC by 0.117 s
+Race result                 P4                   P6                   LEC by 11.8 s
+Fastest race lap            1:21.294             1:21.546             LEC by 0.252 s
+Mean pace (51 clean laps)   1:23.112             1:23.304             LEC by 0.192 s
+Median pace                 1:23.111             1:23.446             LEC by 0.335 s
+Same-lap duel (50 laps)     quicker on 34 laps   quicker on 16 laps   LEC by 0.179 s/lap
+Consistency σ               0.215 s              0.256 s              LEC steadier
+```
+
+> Both ran a one-stop, Medium to Hard, but Hamilton pitted later (lap 38 vs lap 33). [...]
+> The lap-by-lap duel is fairer because it compares the same lap number, so fuel loads are
+> equal. [...]
+>
+> Leclerc was faster in qualifying, on outright single-lap speed, over the long Medium stint
+> and in consistency. Most of the 11.8 s came from that first stint. On the Hards, Hamilton
+> matched him.
+
+Note how the model chooses the lap-by-lap duel over the median gap, because pit-stop timing
+skews the median: the tool output and descriptions give it the context to reason about
+*which* number to trust.
+
 ## What the tools return
 
 Real output for the **2025 Italian Grand Prix** (Monza, `session_key` 9912).

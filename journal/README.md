@@ -9,3 +9,4 @@ See the [project README](../README.md) for the current state of the project.
 4. [Reorganising the code by responsibility](04-module-reorganization.md)
 5. [Quality: friendly errors, ruff, strict mypy and coverage](05-quality-errors-ruff-mypy-coverage.md)
 6. [Codebase in English](06-codebase-in-english.md)
+7. [Connected to Claude: first real conversation](07-connected-to-claude.md)
