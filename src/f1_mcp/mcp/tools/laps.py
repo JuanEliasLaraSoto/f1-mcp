@@ -5,10 +5,12 @@ import asyncio
 from f1_mcp import analysis, openf1
 from f1_mcp.analysis import of_driver
 from f1_mcp.formatting import fmt_time
+from f1_mcp.mcp.errors import friendly_errors
 from f1_mcp.mcp.server import mcp_server
 
 
 @mcp_server.tool()
+@friendly_errors
 async def get_laps(session_key: int, driver_number: int) -> str:
     """Vueltas de un piloto en una sesión: tiempo por vuelta, tiempos de sector y si
     fue vuelta de salida de boxes (pit out). Usa list_sessions para el session_key
@@ -33,6 +35,7 @@ async def get_laps(session_key: int, driver_number: int) -> str:
 
 
 @mcp_server.tool()
+@friendly_errors
 async def compare_drivers(session_key: int, driver_a: int, driver_b: int) -> str:
     """Compara el ritmo de dos pilotos en una sesión (ideal para carreras): vuelta
     rápida, ritmo medio y mediano, consistencia y duelo vuelta a vuelta. La
@@ -70,28 +73,31 @@ async def compare_drivers(session_key: int, driver_a: int, driver_b: int) -> str
     median_gap = sa["median"] - sb["median"]
     faster, slower = (na, nb) if median_gap < 0 else (nb, na)
 
-    return "\n".join([
-        f"Comparación de ritmo — sesión {session_key}",
-        f"{'':<22}{na:>12}{nb:>12}",
-        f"{'Vueltas limpias':<22}{sa['laps']:>12}{sb['laps']:>12}",
-        f"{'Vuelta rápida':<22}{fmt_time(sa['fastest']):>12}{fmt_time(sb['fastest']):>12}",
-        f"{'Ritmo medio':<22}{fmt_time(sa['mean']):>12}{fmt_time(sb['mean']):>12}",
-        f"{'Ritmo mediano':<22}{fmt_time(sa['median']):>12}{fmt_time(sb['median']):>12}",
-        f"{'Desv. típica bruta (s)':<22}{sa['std']:>12.3f}{sb['std']:>12.3f}",
-        f"{'Consistencia σ (s)':<22}{fmt_cons(ca):>12}{fmt_cons(cb):>12}",
-        "",
-        f"Ritmo mediano: {faster} es {abs(median_gap):.3f} s/vuelta más rápido que {slower}.",
-        f"Duelo vuelta a vuelta ({h2h['common_laps']} vueltas comparables): "
-        f"{na} más rápido en {h2h['a_faster']}, diferencia media {h2h['delta_mean']:+.3f} s "
-        f"(negativo = {na} más rápido).",
-        "Desv. típica bruta: incluye la mejora por combustible y la degradación.",
-        "Consistencia σ: desviación de los residuos tras quitar la tendencia de cada stint "
-        "y outliers (MAD, 3σ). Más bajo = más regular.",
-        "Vueltas limpias: sin vuelta 1, salidas de boxes ni vueltas >107% de la mediana.",
-    ])
+    return "\n".join(
+        [
+            f"Comparación de ritmo — sesión {session_key}",
+            f"{'':<22}{na:>12}{nb:>12}",
+            f"{'Vueltas limpias':<22}{sa['laps']:>12}{sb['laps']:>12}",
+            f"{'Vuelta rápida':<22}{fmt_time(sa['fastest']):>12}{fmt_time(sb['fastest']):>12}",
+            f"{'Ritmo medio':<22}{fmt_time(sa['mean']):>12}{fmt_time(sb['mean']):>12}",
+            f"{'Ritmo mediano':<22}{fmt_time(sa['median']):>12}{fmt_time(sb['median']):>12}",
+            f"{'Desv. típica bruta (s)':<22}{sa['std']:>12.3f}{sb['std']:>12.3f}",
+            f"{'Consistencia σ (s)':<22}{fmt_cons(ca):>12}{fmt_cons(cb):>12}",
+            "",
+            f"Ritmo mediano: {faster} es {abs(median_gap):.3f} s/vuelta más rápido que {slower}.",
+            f"Duelo vuelta a vuelta ({h2h['common_laps']} vueltas comparables): "
+            f"{na} más rápido en {h2h['a_faster']}, diferencia media {h2h['delta_mean']:+.3f} s "
+            f"(negativo = {na} más rápido).",
+            "Desv. típica bruta: incluye la mejora por combustible y la degradación.",
+            "Consistencia σ: desviación de los residuos tras quitar la tendencia de cada stint "
+            "y outliers (MAD, 3σ). Más bajo = más regular.",
+            "Vueltas limpias: sin vuelta 1, salidas de boxes ni vueltas >107% de la mediana.",
+        ]
+    )
 
 
 @mcp_server.tool()
+@friendly_errors
 async def get_stints(session_key: int, driver_number: int) -> str:
     """Stints de un piloto (tramos con el mismo juego de neumáticos): compuesto,
     vueltas, edad del neumático al montarlo, ritmo medio y degradación estimada

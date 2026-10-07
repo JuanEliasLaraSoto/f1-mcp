@@ -8,10 +8,20 @@ from f1_mcp.mcp.tools.sessions import get_results, list_sessions
 from f1_mcp.mcp.tools.strategy import race_strategy
 
 SESSIONS = [
-    {"session_key": 1, "session_name": "Race", "date_start": "2025-05-18T13:00:00+00:00",
-     "country_name": "Italy", "circuit_short_name": "Imola"},
-    {"session_key": 2, "session_name": "Race", "date_start": "2025-09-07T13:00:00+00:00",
-     "country_name": "Italy", "circuit_short_name": "Monza"},
+    {
+        "session_key": 1,
+        "session_name": "Race",
+        "date_start": "2025-05-18T13:00:00+00:00",
+        "country_name": "Italy",
+        "circuit_short_name": "Imola",
+    },
+    {
+        "session_key": 2,
+        "session_name": "Race",
+        "date_start": "2025-09-07T13:00:00+00:00",
+        "country_name": "Italy",
+        "circuit_short_name": "Monza",
+    },
 ]
 DRIVERS = [
     {"driver_number": 16, "name_acronym": "LEC", "team_name": "Ferrari"},
@@ -51,10 +61,26 @@ async def test_get_results_ordena_y_marca_abandonos() -> None:
         return_value=httpx.Response(
             200,
             json=[
-                {"driver_number": 44, "position": None, "number_of_laps": 30,
-                 "duration": None, "gap_to_leader": None, "dnf": True, "dns": False, "dsq": False},
-                {"driver_number": 16, "position": 1, "number_of_laps": 53,
-                 "duration": 4815.5, "gap_to_leader": 0, "dnf": False, "dns": False, "dsq": False},
+                {
+                    "driver_number": 44,
+                    "position": None,
+                    "number_of_laps": 30,
+                    "duration": None,
+                    "gap_to_leader": None,
+                    "dnf": True,
+                    "dns": False,
+                    "dsq": False,
+                },
+                {
+                    "driver_number": 16,
+                    "position": 1,
+                    "number_of_laps": 53,
+                    "duration": 4815.5,
+                    "gap_to_leader": 0,
+                    "dnf": False,
+                    "dns": False,
+                    "dsq": False,
+                },
             ],
         )
     )
@@ -69,10 +95,34 @@ async def test_get_results_ordena_y_marca_abandonos() -> None:
 @respx.mock
 async def test_race_strategy_resume_estrategias() -> None:
     stints = [
-        {"driver_number": 16, "stint_number": 1, "compound": "MEDIUM", "lap_start": 1, "lap_end": 20},
-        {"driver_number": 16, "stint_number": 2, "compound": "HARD", "lap_start": 21, "lap_end": 53},
-        {"driver_number": 44, "stint_number": 1, "compound": "MEDIUM", "lap_start": 1, "lap_end": 25},
-        {"driver_number": 44, "stint_number": 2, "compound": "HARD", "lap_start": 26, "lap_end": 53},
+        {
+            "driver_number": 16,
+            "stint_number": 1,
+            "compound": "MEDIUM",
+            "lap_start": 1,
+            "lap_end": 20,
+        },
+        {
+            "driver_number": 16,
+            "stint_number": 2,
+            "compound": "HARD",
+            "lap_start": 21,
+            "lap_end": 53,
+        },
+        {
+            "driver_number": 44,
+            "stint_number": 1,
+            "compound": "MEDIUM",
+            "lap_start": 1,
+            "lap_end": 25,
+        },
+        {
+            "driver_number": 44,
+            "stint_number": 2,
+            "compound": "HARD",
+            "lap_start": 26,
+            "lap_end": 53,
+        },
     ]
     pits = [
         {"driver_number": 16, "lap_number": 20, "stop_duration": 2.3},

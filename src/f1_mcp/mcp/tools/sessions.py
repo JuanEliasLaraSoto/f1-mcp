@@ -4,10 +4,12 @@ import asyncio
 
 from f1_mcp import openf1
 from f1_mcp.formatting import fmt_duration, fmt_gap
+from f1_mcp.mcp.errors import friendly_errors
 from f1_mcp.mcp.server import mcp_server
 
 
 @mcp_server.tool()
+@friendly_errors
 async def list_sessions(year: int, country: str | None = None, circuit: str | None = None) -> str:
     """Lista las sesiones de F1 (FP1, Qualifying, Race...) de un año, opcionalmente
     filtradas por país en inglés (p. ej. 'Italy') y/o por circuito (p. ej. 'Monza',
@@ -28,6 +30,7 @@ async def list_sessions(year: int, country: str | None = None, circuit: str | No
 
 
 @mcp_server.tool()
+@friendly_errors
 async def list_drivers(session_key: int) -> str:
     """Lista los pilotos de una sesión con su driver_number, que es como OpenF1
     identifica a cada piloto en el resto de tools (p. ej. get_laps)."""
@@ -41,6 +44,7 @@ async def list_drivers(session_key: int) -> str:
 
 
 @mcp_server.tool()
+@friendly_errors
 async def get_results(session_key: int) -> str:
     """Clasificación final de una sesión: posición, piloto, vueltas completadas,
     tiempo total (en clasificación, el de la última ronda disputada), gap con el

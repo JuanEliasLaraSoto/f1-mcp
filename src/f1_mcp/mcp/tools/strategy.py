@@ -5,10 +5,12 @@ from collections import Counter
 
 from f1_mcp import analysis, openf1
 from f1_mcp.analysis import of_driver
+from f1_mcp.mcp.errors import friendly_errors
 from f1_mcp.mcp.server import mcp_server
 
 
 @mcp_server.tool()
+@friendly_errors
 async def race_strategy(session_key: int) -> str:
     """Estrategia de neumáticos de toda la parrilla en una carrera, en orden de llegada:
     compuestos con sus vueltas, número de paradas, vuelta de cada parada y tiempo
@@ -36,9 +38,7 @@ async def race_strategy(session_key: int) -> str:
         if not ds:
             continue
         labels.append(analysis.strategy_label(ds))
-        tramos = " → ".join(
-            f"{s['compound']} ({s['lap_start']}-{s['lap_end'] or '?'})" for s in ds
-        )
+        tramos = " → ".join(f"{s['compound']} ({s['lap_start']}-{s['lap_end'] or '?'})" for s in ds)
         stops = sorted(of_driver(pits, num), key=lambda p: p["lap_number"])
         paradas = ", ".join(
             f"v{p['lap_number']}"

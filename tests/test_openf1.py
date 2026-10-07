@@ -24,9 +24,7 @@ async def test_reintenta_tras_429(monkeypatch) -> None:
         pass
 
     monkeypatch.setattr(openf1, "_sleep", no_sleep)
-    route = respx.get(URL).mock(
-        side_effect=[httpx.Response(429), httpx.Response(200, json=DATA)]
-    )
+    route = respx.get(URL).mock(side_effect=[httpx.Response(429), httpx.Response(200, json=DATA)])
 
     result = await openf1.get("drivers", session_key=9912)
 

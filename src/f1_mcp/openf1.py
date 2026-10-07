@@ -15,6 +15,11 @@ from f1_mcp.config import BASE_URL, CACHE_PATH, MAX_RETRIES
 _sleep = asyncio.sleep
 
 
+class OpenF1Error(Exception):
+    """OpenF1 no ha podido dar los datos: caída, timeout o límite de peticiones.
+    El mensaje está pensado para mostrárselo al usuario tal cual."""
+
+
 def _cache_key(endpoint: str, params: dict[str, Any]) -> str:
     """'laps?{"driver_number": 16, "session_key": 9912}'. sort_keys hace que el
     orden de los parámetros no cambie la clave."""
@@ -49,7 +54,8 @@ def cache_put(key: str, data: list[dict[str, Any]]) -> None:
 async def get(endpoint: str, **params: Any) -> list[dict[str, Any]]:
     """GET a un endpoint de OpenF1. Primero mira la caché; si no está, pide a la API
     (reintentando con espera exponencial ante 429) y guarda la respuesta.
-    Parámetros None se ignoran. 404 = sin resultados."""
+    Parámetros None se ignoran. 404 = sin resultados. Cualquier otro fallo
+    (red, timeout, 429 persistente, 5xx) se convierte en OpenF1Error."""
     clean = {k: v for k, v in params.items() if v is not None}
     key = _cache_key(endpoint, clean)
 
@@ -57,17 +63,25 @@ async def get(endpoint: str, **params: Any) -> list[dict[str, Any]]:
     if cached is not None:
         return cached
 
-    async with httpx.AsyncClient(base_url=BASE_URL, timeout=20) as client:
-        for attempt in range(MAX_RETRIES):
-            r = await client.get(f"/{endpoint}", params=clean)
-            if r.status_code == 429 and attempt < MAX_RETRIES - 1:
-                await _sleep(2**attempt)  # 1 s, 2 s...
-                continue
-            break
+    try:
+        async with httpx.AsyncClient(base_url=BASE_URL, timeout=20) as client:
+            for attempt in range(MAX_RETRIES):
+                r = await client.get(f"/{endpoint}", params=clean)
+                if r.status_code == 429 and attempt < MAX_RETRIES - 1:
+                    await _sleep(2**attempt)  # 1 s, 2 s...
+                    continue
+                break
+    except httpx.TimeoutException as exc:
+        raise OpenF1Error("OpenF1 está tardando demasiado en responder.") from exc
+    except httpx.RequestError as exc:
+        raise OpenF1Error("No se puede conectar con OpenF1 (¿hay conexión a internet?).") from exc
 
     if r.status_code == 404:
         return []
-    r.raise_for_status()
+    if r.status_code == 429:
+        raise OpenF1Error("Se ha alcanzado el límite de peticiones de OpenF1; espera un minuto.")
+    if r.status_code >= 400:
+        raise OpenF1Error(f"OpenF1 ha devuelto un error {r.status_code}.")
     data: list[dict[str, Any]] = r.json()
     if data:  # no cacheamos vacíos: pueden ser una sesión aún sin datos
         cache_put(key, data)
