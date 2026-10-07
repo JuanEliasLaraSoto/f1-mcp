@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections import Counter
 from typing import Any
 
 from mcp.server.mcpserver import MCPServer
@@ -32,14 +33,18 @@ def ping() -> str:
 
 
 @mcp_server.tool()
-async def list_sessions(year: int, country: str | None = None) -> str:
+async def list_sessions(year: int, country: str | None = None, circuit: str | None = None) -> str:
     """Lista las sesiones de F1 (FP1, Qualifying, Race...) de un año, opcionalmente
-    filtradas por país en inglés (p. ej. 'Italy'). Un país puede tener varios GPs
-    en un año (Italia: Imola y Monza): fíjate en el circuito. Cada sesión incluye
-    su session_key, que usan el resto de tools."""
+    filtradas por país en inglés (p. ej. 'Italy') y/o por circuito (p. ej. 'Monza',
+    'Imola'; no distingue mayúsculas). Un país puede tener varios GPs en un año, así
+    que usa circuit para concretar. Cada sesión incluye su session_key, que usan el
+    resto de tools."""
     sessions = await openf1.get("sessions", year=year, country_name=country)
+    if circuit:
+        sessions = [s for s in sessions if circuit.lower() in s["circuit_short_name"].lower()]
     if not sessions:
-        return f"No hay sesiones para {year}" + (f" en {country}." if country else ".")
+        filtros = " / ".join(f for f in (country, circuit) if f)
+        return f"No hay sesiones para {year}" + (f" en {filtros}." if filtros else ".")
     return "\n".join(
         f"{s['date_start'][:10]} | {s['country_name']} ({s['circuit_short_name']}) | "
         f"{s['session_name']} | session_key: {s['session_key']}"
@@ -181,4 +186,110 @@ async def get_stints(session_key: int, driver_number: int) -> str:
         f"\nNota: corrección de combustible aproximada de "
         f"{analysis.FUEL_EFFECT_PER_LAP} s/vuelta; la degradación corregida es una estimación."
     )
+    return "\n".join(lines)
+
+
+def fmt_duration(value: Any) -> str:
+    """Tiempo total de una sesión. En clasificación OpenF1 da [Q1, Q2, Q3]: se usa
+    el último disponible. Más de una hora -> 'h:mm:ss.sss'."""
+    if isinstance(value, list):
+        value = next((v for v in reversed(value) if v is not None), None)
+    if value is None:
+        return "—"
+    if value >= 3600:
+        hours, rest = divmod(value, 3600)
+        return f"{int(hours)}:{fmt_time(rest).zfill(9)}"
+    return fmt_time(value)
+
+
+def fmt_gap(gap: Any) -> str:
+    """Gap con el líder: número (s), texto ('+1 LAP') o lista [Q1, Q2, Q3]."""
+    if isinstance(gap, list):
+        gap = next((g for g in reversed(gap) if g is not None), None)
+    if gap is None:
+        return "—"
+    if isinstance(gap, (int, float)):
+        return "líder" if gap == 0 else f"+{gap:.3f} s"
+    return str(gap)
+
+
+@mcp_server.tool()
+async def get_results(session_key: int) -> str:
+    """Clasificación final de una sesión: posición, piloto, vueltas completadas,
+    tiempo total (en clasificación, el de la última ronda disputada), gap con el
+    líder y abandonos (DNF = no terminó, DNS = no salió, DSQ = descalificado)."""
+    results, drivers = await asyncio.gather(
+        openf1.get("session_result", session_key=session_key),
+        openf1.get("drivers", session_key=session_key),
+    )
+    if not results:
+        return f"No hay resultados para la sesión {session_key}."
+    info = {d["driver_number"]: d for d in drivers}
+
+    lines = []
+    for r in sorted(results, key=lambda r: (r.get("position") is None, r.get("position") or 0)):
+        d = info.get(r["driver_number"], {})
+        pos = f"P{r['position']}" if r.get("position") else "—"
+        status = next((k.upper() for k in ("dnf", "dns", "dsq") if r.get(k)), "")
+        lines.append(
+            f"{pos:<4} #{r['driver_number']} {d.get('name_acronym', '?')} "
+            f"({d.get('team_name', '?')}) | {r.get('number_of_laps', '—')} vueltas | "
+            f"tiempo {fmt_duration(r.get('duration'))} | gap {fmt_gap(r.get('gap_to_leader'))}"
+            + (f" | {status}" if status else "")
+        )
+    return "\n".join(lines)
+
+
+@mcp_server.tool()
+async def race_strategy(session_key: int) -> str:
+    """Estrategia de neumáticos de toda la parrilla en una carrera, en orden de llegada:
+    compuestos con sus vueltas, número de paradas, vuelta de cada parada y tiempo
+    parado. Termina con un resumen: estrategias más usadas y parada más rápida.
+    Para el detalle de degradación de un piloto usa get_stints."""
+    stints, pits, results = await asyncio.gather(
+        openf1.get("stints", session_key=session_key),
+        openf1.get("pit", session_key=session_key),
+        openf1.get("session_result", session_key=session_key),
+    )
+    if not stints:
+        return f"No hay datos de stints para la sesión {session_key}."
+    drivers = await openf1.get("drivers", session_key=session_key)
+    names = {d["driver_number"]: d["name_acronym"] for d in drivers}
+
+    # Orden de llegada; si no hay resultados, por número de piloto
+    ranked = sorted(results, key=lambda r: (r.get("position") is None, r.get("position") or 0))
+    order = [r["driver_number"] for r in ranked] or sorted({s["driver_number"] for s in stints})
+    pos = {r["driver_number"]: r.get("position") for r in results}
+
+    lines = []
+    labels = []
+    for num in order:
+        ds = sorted(of_driver(stints, num), key=lambda s: s["stint_number"])
+        if not ds:
+            continue
+        labels.append(analysis.strategy_label(ds))
+        tramos = " → ".join(
+            f"{s['compound']} ({s['lap_start']}-{s['lap_end'] or '?'})" for s in ds
+        )
+        stops = sorted(of_driver(pits, num), key=lambda p: p["lap_number"])
+        paradas = ", ".join(
+            f"v{p['lap_number']}"
+            + (f" ({p['stop_duration']:.1f} s parado)" if p.get("stop_duration") else "")
+            for p in stops
+        )
+        p = f"P{pos[num]}" if pos.get(num) else "—"
+        lines.append(
+            f"{p:<4} {names.get(num, f'#{num}')}: {tramos} | "
+            f"{len(stops)} parada(s){': ' + paradas if paradas else ''}"
+        )
+
+    resumen = [f"{n} piloto(s): {label}" for label, n in Counter(labels).most_common(3)]
+    timed = [p for p in pits if p.get("stop_duration")]
+    lines += ["", "Estrategias más usadas:", *resumen]
+    if timed:
+        best = min(timed, key=lambda p: p["stop_duration"])
+        lines.append(
+            f"Parada más rápida: {names.get(best['driver_number'], '?')} "
+            f"{best['stop_duration']:.1f} s (vuelta {best['lap_number']})"
+        )
     return "\n".join(lines)

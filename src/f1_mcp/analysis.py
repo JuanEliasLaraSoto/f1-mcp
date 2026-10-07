@@ -107,3 +107,10 @@ def robust_consistency(residuals: list[float]) -> float | None:
     sigma = 1.4826 * statistics.median(abs(r - med) for r in residuals)
     kept = [r for r in residuals if sigma == 0 or abs(r - med) <= 3 * sigma]
     return statistics.stdev(kept) if len(kept) > 1 else 0.0
+
+
+def strategy_label(stints: list[dict[str, Any]]) -> str:
+    """'MEDIUM → HARD' a partir de los stints de un piloto (ordenados por stint_number).
+    Sirve para agrupar a los pilotos que hicieron la misma estrategia."""
+    ordered = sorted(stints, key=lambda s: s["stint_number"])
+    return " → ".join(s["compound"] or "?" for s in ordered)
