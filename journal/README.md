@@ -10,3 +10,4 @@ See the [project README](../README.md) for the current state of the project.
 5. [Quality: friendly errors, ruff, strict mypy and coverage](05-quality-errors-ruff-mypy-coverage.md)
 6. [Codebase in English](06-codebase-in-english.md)
 7. [Connected to Claude: first real conversation](07-connected-to-claude.md)
+- [08 - CLAUDE.md and a spec-driven workflow](08-claude-md-and-spec-driven-workflow.md)
