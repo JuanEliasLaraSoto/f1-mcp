@@ -16,7 +16,7 @@ import sys
 from mcp.client._memory import InMemoryTransport
 from mcp.client.session import ClientSession
 
-from f1_mcp.server import mcp_server
+from f1_mcp.mcp.server import mcp_server
 
 
 async def main() -> None:

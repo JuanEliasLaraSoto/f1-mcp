@@ -2,7 +2,7 @@
 un menú o comandos con /). Cada una arranca un análisis guiando al modelo sobre
 qué tools encadenar y en qué orden."""
 
-from f1_mcp.server import mcp_server
+from f1_mcp.mcp.server import mcp_server
 
 
 @mcp_server.prompt()

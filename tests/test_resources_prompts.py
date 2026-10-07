@@ -9,7 +9,7 @@ from mcp.client._memory import InMemoryTransport
 from mcp.client.session import ClientSession
 
 from f1_mcp.openf1 import BASE_URL
-from f1_mcp.server import mcp_server
+from f1_mcp.mcp.server import mcp_server
 
 
 async def test_resources_y_prompts_registrados() -> None:

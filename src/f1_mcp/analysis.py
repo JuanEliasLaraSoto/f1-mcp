@@ -114,3 +114,8 @@ def strategy_label(stints: list[dict[str, Any]]) -> str:
     Sirve para agrupar a los pilotos que hicieron la misma estrategia."""
     ordered = sorted(stints, key=lambda s: s["stint_number"])
     return " → ".join(s["compound"] or "?" for s in ordered)
+
+
+def of_driver(rows: list[dict[str, Any]], driver_number: int) -> list[dict[str, Any]]:
+    """Filtra filas de OpenF1 (vueltas, stints...) de un piloto concreto."""
+    return [r for r in rows if r["driver_number"] == driver_number]

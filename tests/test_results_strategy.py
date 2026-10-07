@@ -3,7 +3,9 @@ import respx
 
 from f1_mcp.analysis import strategy_label
 from f1_mcp.openf1 import BASE_URL
-from f1_mcp.server import fmt_duration, fmt_gap, get_results, list_sessions, race_strategy
+from f1_mcp.formatting import fmt_duration, fmt_gap
+from f1_mcp.mcp.tools.sessions import get_results, list_sessions
+from f1_mcp.mcp.tools.strategy import race_strategy
 
 SESSIONS = [
     {"session_key": 1, "session_name": "Race", "date_start": "2025-05-18T13:00:00+00:00",

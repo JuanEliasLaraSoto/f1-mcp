@@ -5,14 +5,11 @@ import json
 import sqlite3
 import time
 from contextlib import closing
-from pathlib import Path
 from typing import Any
 
 import httpx
 
-BASE_URL = "https://api.openf1.org/v1"
-CACHE_PATH = Path.home() / ".cache" / "f1-mcp" / "openf1.sqlite"
-MAX_RETRIES = 3
+from f1_mcp.config import BASE_URL, CACHE_PATH, MAX_RETRIES
 
 # Alias para poder sustituirlo en los tests y no esperar de verdad
 _sleep = asyncio.sleep

@@ -4,7 +4,7 @@ listar y adjuntar al contexto, como un documento. Devuelven JSON, no texto forma
 from typing import Any
 
 from f1_mcp import openf1
-from f1_mcp.server import mcp_server
+from f1_mcp.mcp.server import mcp_server
 
 
 @mcp_server.resource("f1://sessions/{year}", mime_type="application/json")
