@@ -77,3 +77,33 @@ def stint_degradation(
         "slope": slope,
         "slope_fuel_corrected": slope + FUEL_EFFECT_PER_LAP,
     }
+
+
+def detrended_residuals(clean: dict[int, float], stints: list[dict[str, Any]]) -> list[float]:
+    """Por cada stint ajusta una recta (combustible + degradación) y devuelve los
+    residuos: cuánto se separa cada vuelta de la tendencia de su propio stint."""
+    if not clean:
+        return []
+    last = max(clean)
+    residuals: list[float] = []
+    for s in stints:
+        start, end = s["lap_start"], s["lap_end"] or last
+        pts = [(n, t) for n, t in sorted(clean.items()) if start <= n <= end]
+        if len(pts) < 3:
+            continue
+        slope, intercept = statistics.linear_regression([n for n, _ in pts], [t for _, t in pts])
+        residuals += [t - (intercept + slope * n) for n, t in pts]
+    return residuals
+
+
+def robust_consistency(residuals: list[float]) -> float | None:
+    """Desviación típica de los residuos tras quitar outliers con la MAD
+    (|r - mediana| > 3·σ, con σ = 1.4826·MAD). Mide la regularidad del piloto
+    sin el efecto del combustible, la degradación ni vueltas anómalas.
+    Devuelve None si no hay datos suficientes."""
+    if len(residuals) < 3:
+        return None
+    med = statistics.median(residuals)
+    sigma = 1.4826 * statistics.median(abs(r - med) for r in residuals)
+    kept = [r for r in residuals if sigma == 0 or abs(r - med) <= 3 * sigma]
+    return statistics.stdev(kept) if len(kept) > 1 else 0.0

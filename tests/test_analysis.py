@@ -54,3 +54,21 @@ def test_stint_degradation_none_con_pocas_vueltas() -> None:
     from f1_mcp.analysis import stint_degradation
 
     assert stint_degradation({10: 90.0, 11: 90.1}, 10, 20) is None
+
+
+def test_consistencia_sobre_residuos_ignora_tendencia_y_outliers() -> None:
+    from f1_mcp.analysis import detrended_residuals, pace_stats, robust_consistency
+
+    # Un stint: mejora 0.1 s/vuelta (tendencia) + ruido de ±0.1 s + una vuelta con tráfico (+5 s)
+    clean = {n: 90.0 - 0.1 * (n - 2) + 0.1 * (-1) ** n for n in range(2, 22)}
+    clean[10] += 5.0
+    stints = [{"lap_start": 2, "lap_end": 21}]
+
+    raw_std = pace_stats(list(clean.values()))["std"]
+    consistency = robust_consistency(detrended_residuals(clean, stints))
+
+    # La desviación bruta se infla por la tendencia y el outlier...
+    assert raw_std > 0.5
+    # ...la consistencia sobre residuos recupera el ruido real (~0.1 s)
+    assert consistency is not None
+    assert consistency < 0.2
