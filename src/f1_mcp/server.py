@@ -293,3 +293,8 @@ async def race_strategy(session_key: int) -> str:
             f"{best['stop_duration']:.1f} s (vuelta {best['lap_number']})"
         )
     return "\n".join(lines)
+
+
+# Importar estos módulos registra sus @mcp_server.resource() y @mcp_server.prompt().
+# Va al final porque ellos importan mcp_server de este archivo: tiene que existir ya.
+from f1_mcp import prompts, resources  # noqa: E402, F401
