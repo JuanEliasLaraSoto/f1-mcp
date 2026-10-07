@@ -8,3 +8,4 @@ See the [project README](../README.md) for the current state of the project.
 3. [Resources and prompts: the other two MCP primitives](03-resources-and-prompts.md)
 4. [Reorganising the code by responsibility](04-module-reorganization.md)
 5. [Quality: friendly errors, ruff, strict mypy and coverage](05-quality-errors-ruff-mypy-coverage.md)
+6. [Codebase in English](06-codebase-in-english.md)

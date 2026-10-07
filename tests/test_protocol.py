@@ -1,4 +1,4 @@
-"""Tools a través del protocolo MCP real: registro y una llamada de extremo a extremo."""
+"""Tools through the real MCP protocol: registration and end-to-end calls."""
 
 import httpx
 import respx
@@ -20,7 +20,7 @@ TOOLS = {
 }
 
 
-async def test_todas_las_tools_registradas_con_descripcion() -> None:
+async def test_all_tools_registered_with_description() -> None:
     async with InMemoryTransport(mcp_server) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
@@ -28,10 +28,10 @@ async def test_todas_las_tools_registradas_con_descripcion() -> None:
 
     assert {t.name for t in tools.tools} == TOOLS
     for tool in tools.tools:
-        assert tool.description, f"{tool.name} no tiene descripción"
+        assert tool.description, f"{tool.name} has no description"
 
 
-async def test_ping_por_protocolo() -> None:
+async def test_ping_over_protocol() -> None:
     async with InMemoryTransport(mcp_server) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
@@ -42,7 +42,7 @@ async def test_ping_por_protocolo() -> None:
 
 
 @respx.mock
-async def test_list_drivers_por_protocolo() -> None:
+async def test_list_drivers_over_protocol() -> None:
     respx.get(f"{BASE_URL}/drivers").mock(
         return_value=httpx.Response(
             200,
@@ -66,7 +66,7 @@ async def test_list_drivers_por_protocolo() -> None:
 
 
 @respx.mock
-async def test_leer_resource_de_sesiones() -> None:
+async def test_read_sessions_resource() -> None:
     respx.get(f"{BASE_URL}/sessions").mock(
         return_value=httpx.Response(
             200,

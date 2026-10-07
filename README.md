@@ -20,27 +20,25 @@ Real output for the **2025 Italian Grand Prix** (Monza, `session_key` 9912).
 `compare_drivers(9912, 16, 44)` — Leclerc vs Hamilton:
 
 ```
-Ritmo mediano: LEC es 0.335 s/vuelta más rápido que HAM.
-Duelo vuelta a vuelta (50 vueltas comparables): LEC más rápido en 34,
-diferencia media -0.179 s (negativo = LEC más rápido).
+Median pace: LEC is 0.335 s/lap faster than HAM.
+Lap-by-lap duel (50 comparable laps): LEC faster in 34,
+mean gap -0.179 s (negative = LEC faster).
 ```
 
 `race_strategy(9912)` — the whole grid in one call (excerpt):
 
 ```
-P1   VER: MEDIUM (1-37) → HARD (38-53) | 1 parada(s): v37 (2.3 s parado)
-P2   NOR: MEDIUM (1-46) → SOFT (47-53) | 1 parada(s): v46 (5.9 s parado)
-P3   PIA: MEDIUM (1-45) → SOFT (46-53) | 1 parada(s): v45 (1.9 s parado)
+P1   VER: MEDIUM (1-37) → HARD (38-53) | 1 stop(s): lap 37 (2.3 s stationary)
+P2   NOR: MEDIUM (1-46) → SOFT (47-53) | 1 stop(s): lap 46 (5.9 s stationary)
+P3   PIA: MEDIUM (1-45) → SOFT (46-53) | 1 stop(s): lap 45 (1.9 s stationary)
 ...
-Estrategias más usadas:
-11 piloto(s): MEDIUM → HARD
-Parada más rápida: PIA 1.9 s (vuelta 45)
+Most common strategies:
+11 driver(s): MEDIUM → HARD
+Fastest stop: PIA 1.9 s (lap 45)
 ```
 
 One call turns hundreds of raw API rows into something the model can reason about — here,
 for example, Norris' 5.9 s stop next to Piastri's 1.9 s.
-
-> Tool output is currently in Spanish; English output is the next step on the roadmap.
 
 ## How the analysis works
 
@@ -70,8 +68,8 @@ for example, Norris' 5.9 s stop next to Piastri's 1.9 s.
 **Resources** — read-only data the user can attach, returned as JSON:
 `f1://sessions/{year}` · `f1://session/{session_key}/results`
 
-**Prompts** — templates the user picks from a menu: `analizar_carrera(year, circuit)` ·
-`comparar_pilotos(year, circuit, piloto_a, piloto_b)`. Each one tells the model which tools
+**Prompts** — templates the user picks from a menu: `analyze_race(year, circuit)` ·
+`driver_duel(year, circuit, driver_a, driver_b)`. Each one tells the model which tools
 to chain and what to watch out for (e.g. *pace is not the same as final position*).
 
 ## Architecture
@@ -139,14 +137,14 @@ No API key is needed: OpenF1's historical data (2023 onwards) is free.
 
 ### Try it without Claude
 
-`scripts/probar_cliente.py` is a small MCP client that connects to the server in memory —
+`scripts/try_client.py` is a small MCP client that connects to the server in memory —
 the same way Claude would:
 
 ```bash
-uv run python scripts/probar_cliente.py                      # tools and their JSON schemas
-uv run python scripts/probar_cliente.py compare_drivers '{"session_key": 9912, "driver_a": 16, "driver_b": 44}'
-uv run python scripts/probar_cliente.py recursos             # resources
-uv run python scripts/probar_cliente.py prompts              # prompts
+uv run python scripts/try_client.py                          # tools and their JSON schemas
+uv run python scripts/try_client.py compare_drivers '{"session_key": 9912, "driver_a": 16, "driver_b": 44}'
+uv run python scripts/try_client.py resources                # resources
+uv run python scripts/try_client.py prompts                  # prompts
 ```
 
 ## Development

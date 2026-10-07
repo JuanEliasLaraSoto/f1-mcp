@@ -1,4 +1,4 @@
-"""Tools de vueltas y ritmo: vuelta a vuelta, comparación y stints."""
+"""Lap and pace tools: lap by lap, driver comparison and stints."""
 
 import asyncio
 
@@ -12,14 +12,14 @@ from f1_mcp.mcp.server import mcp_server
 @mcp_server.tool()
 @friendly_errors
 async def get_laps(session_key: int, driver_number: int) -> str:
-    """Vueltas de un piloto en una sesión: tiempo por vuelta, tiempos de sector y si
-    fue vuelta de salida de boxes (pit out). Usa list_sessions para el session_key
-    y list_drivers para el driver_number."""
+    """A driver's laps in a session: lap time, sector times and whether it was a
+    pit-out lap. Use list_sessions for the session_key and list_drivers for the
+    driver_number."""
     laps = await openf1.get("laps", session_key=session_key, driver_number=driver_number)
     if not laps:
-        return f"No hay vueltas del piloto #{driver_number} en la sesión {session_key}."
+        return f"No laps found for driver #{driver_number} in session {session_key}."
 
-    lines = ["Vuelta | Tiempo | S1 | S2 | S3 | Notas"]
+    lines = ["Lap | Time | S1 | S2 | S3 | Notes"]
     for lap in sorted(laps, key=lambda x: x["lap_number"]):
         notes = "pit out" if lap.get("is_pit_out_lap") else ""
         lines.append(
@@ -30,20 +30,20 @@ async def get_laps(session_key: int, driver_number: int) -> str:
 
     timed = [lap["lap_duration"] for lap in laps if lap.get("lap_duration")]
     if timed:
-        lines.append(f"\nVuelta rápida: {fmt_time(min(timed))} | Vueltas con tiempo: {len(timed)}")
+        lines.append(f"\nFastest lap: {fmt_time(min(timed))} | Timed laps: {len(timed)}")
     return "\n".join(lines)
 
 
 @mcp_server.tool()
 @friendly_errors
 async def compare_drivers(session_key: int, driver_a: int, driver_b: int) -> str:
-    """Compara el ritmo de dos pilotos en una sesión (ideal para carreras): vuelta
-    rápida, ritmo medio y mediano, consistencia y duelo vuelta a vuelta. La
-    consistencia se mide sobre los residuos tras quitar la tendencia de cada stint
-    (combustible y degradación), así que refleja la regularidad del piloto y no la
-    evolución del coche. driver_a/driver_b son driver_number (ver list_drivers)."""
-    # 3 peticiones de sesión completa (todas las vueltas y stints) en vez de 5 por
-    # piloto: respeta el límite de 3 req/s de OpenF1 y filtramos en local.
+    """Compares the pace of two drivers in a session (best for races): fastest lap,
+    mean and median pace, consistency and a lap-by-lap duel. Consistency is measured
+    on the residuals after removing each stint's trend (fuel burn and degradation),
+    so it reflects how regular the driver was, not how the car evolved.
+    driver_a/driver_b are driver_number values (see list_drivers)."""
+    # 3 whole-session requests (all laps and stints) instead of 5 per-driver ones:
+    # stays within OpenF1's 3 req/s limit; filtering happens locally.
     laps, stints, drivers = await asyncio.gather(
         openf1.get("laps", session_key=session_key),
         openf1.get("stints", session_key=session_key),
@@ -55,7 +55,7 @@ async def compare_drivers(session_key: int, driver_a: int, driver_b: int) -> str
     clean_a = analysis.clean_laps(of_driver(laps, driver_a))
     clean_b = analysis.clean_laps(of_driver(laps, driver_b))
     if not clean_a or not clean_b:
-        return f"No hay vueltas suficientes para comparar a {na} y {nb} en la sesión {session_key}."
+        return f"Not enough laps to compare {na} and {nb} in session {session_key}."
 
     sa = analysis.pace_stats(list(clean_a.values()))
     sb = analysis.pace_stats(list(clean_b.values()))
@@ -75,23 +75,23 @@ async def compare_drivers(session_key: int, driver_a: int, driver_b: int) -> str
 
     return "\n".join(
         [
-            f"Comparación de ritmo — sesión {session_key}",
+            f"Pace comparison — session {session_key}",
             f"{'':<22}{na:>12}{nb:>12}",
-            f"{'Vueltas limpias':<22}{sa['laps']:>12}{sb['laps']:>12}",
-            f"{'Vuelta rápida':<22}{fmt_time(sa['fastest']):>12}{fmt_time(sb['fastest']):>12}",
-            f"{'Ritmo medio':<22}{fmt_time(sa['mean']):>12}{fmt_time(sb['mean']):>12}",
-            f"{'Ritmo mediano':<22}{fmt_time(sa['median']):>12}{fmt_time(sb['median']):>12}",
-            f"{'Desv. típica bruta (s)':<22}{sa['std']:>12.3f}{sb['std']:>12.3f}",
-            f"{'Consistencia σ (s)':<22}{fmt_cons(ca):>12}{fmt_cons(cb):>12}",
+            f"{'Clean laps':<22}{sa['laps']:>12}{sb['laps']:>12}",
+            f"{'Fastest lap':<22}{fmt_time(sa['fastest']):>12}{fmt_time(sb['fastest']):>12}",
+            f"{'Mean pace':<22}{fmt_time(sa['mean']):>12}{fmt_time(sb['mean']):>12}",
+            f"{'Median pace':<22}{fmt_time(sa['median']):>12}{fmt_time(sb['median']):>12}",
+            f"{'Raw std dev (s)':<22}{sa['std']:>12.3f}{sb['std']:>12.3f}",
+            f"{'Consistency σ (s)':<22}{fmt_cons(ca):>12}{fmt_cons(cb):>12}",
             "",
-            f"Ritmo mediano: {faster} es {abs(median_gap):.3f} s/vuelta más rápido que {slower}.",
-            f"Duelo vuelta a vuelta ({h2h['common_laps']} vueltas comparables): "
-            f"{na} más rápido en {h2h['a_faster']}, diferencia media {h2h['delta_mean']:+.3f} s "
-            f"(negativo = {na} más rápido).",
-            "Desv. típica bruta: incluye la mejora por combustible y la degradación.",
-            "Consistencia σ: desviación de los residuos tras quitar la tendencia de cada stint "
-            "y outliers (MAD, 3σ). Más bajo = más regular.",
-            "Vueltas limpias: sin vuelta 1, salidas de boxes ni vueltas >107% de la mediana.",
+            f"Median pace: {faster} is {abs(median_gap):.3f} s/lap faster than {slower}.",
+            f"Lap-by-lap duel ({h2h['common_laps']} comparable laps): "
+            f"{na} faster in {h2h['a_faster']}, mean gap {h2h['delta_mean']:+.3f} s "
+            f"(negative = {na} faster).",
+            "Raw std dev: includes the gain from fuel burn and tyre degradation.",
+            "Consistency σ: spread of the residuals after removing each stint's trend "
+            "and outliers (MAD, 3σ). Lower = more consistent.",
+            "Clean laps: excludes lap 1, pit-out laps and laps >107% of the median.",
         ]
     )
 
@@ -99,16 +99,15 @@ async def compare_drivers(session_key: int, driver_a: int, driver_b: int) -> str
 @mcp_server.tool()
 @friendly_errors
 async def get_stints(session_key: int, driver_number: int) -> str:
-    """Stints de un piloto (tramos con el mismo juego de neumáticos): compuesto,
-    vueltas, edad del neumático al montarlo, ritmo medio y degradación estimada
-    (pendiente del tiempo por vuelta, observada y corregida por consumo de combustible).
-    Útil para analizar estrategia y gestión de neumáticos."""
+    """A driver's stints (runs on the same set of tyres): compound, laps, tyre age
+    when fitted, mean pace and estimated degradation (slope of lap time per lap,
+    observed and corrected for fuel burn). Useful for strategy and tyre management."""
     stints, laps = await asyncio.gather(
         openf1.get("stints", session_key=session_key, driver_number=driver_number),
         openf1.get("laps", session_key=session_key, driver_number=driver_number),
     )
     if not stints:
-        return f"No hay stints del piloto #{driver_number} en la sesión {session_key}."
+        return f"No stints found for driver #{driver_number} in session {session_key}."
 
     clean = analysis.clean_laps(laps)
     last_lap = max((lap["lap_number"] for lap in laps), default=0)
@@ -117,22 +116,22 @@ async def get_stints(session_key: int, driver_number: int) -> str:
     for s in sorted(stints, key=lambda s: s["stint_number"]):
         start, end = s["lap_start"], s["lap_end"] or last_lap
         header = (
-            f"Stint {s['stint_number']}: {s['compound']} | vueltas {start}-{end} "
-            f"({end - start + 1}) | neumático con {s['tyre_age_at_start']} vueltas al montarlo"
+            f"Stint {s['stint_number']}: {s['compound']} | laps {start}-{end} "
+            f"({end - start + 1}) | tyres {s['tyre_age_at_start']} laps old when fitted"
         )
         deg = analysis.stint_degradation(clean, start, end)
         if deg is None:
-            lines.append(f"{header}\n  Pocas vueltas limpias para estimar degradación.")
+            lines.append(f"{header}\n  Too few clean laps to estimate degradation.")
         else:
             lines.append(
                 f"{header}\n"
-                f"  Ritmo medio: {fmt_time(deg['mean'])} ({deg['laps']} vueltas limpias)\n"
-                f"  Degradación observada: {deg['slope']:+.3f} s/vuelta | "
-                f"corregida por combustible: {deg['slope_fuel_corrected']:+.3f} s/vuelta"
+                f"  Mean pace: {fmt_time(deg['mean'])} ({deg['laps']} clean laps)\n"
+                f"  Observed degradation: {deg['slope']:+.3f} s/lap | "
+                f"fuel-corrected: {deg['slope_fuel_corrected']:+.3f} s/lap"
             )
 
     lines.append(
-        f"\nNota: corrección de combustible aproximada de "
-        f"{analysis.FUEL_EFFECT_PER_LAP} s/vuelta; la degradación corregida es una estimación."
+        f"\nNote: fuel correction is an approximation of "
+        f"{analysis.FUEL_EFFECT_PER_LAP} s/lap; corrected degradation is an estimate."
     )
     return "\n".join(lines)

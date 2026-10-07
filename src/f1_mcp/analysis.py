@@ -1,18 +1,21 @@
-"""Cálculos sobre vueltas. Funciones puras: sin red ni MCP, fáciles de testear."""
+"""Lap-time analysis. Pure functions: no network, no MCP, easy to test."""
 
 import statistics
 from typing import Any
 
-# Una vuelta más lenta que el 107% de la mediana se considera no representativa
-# (safety car, entrada a boxes, tráfico, incidente...). Mismo espíritu que la
-# regla del 107% de clasificación de la F1.
+# A lap slower than 107 % of the median is not representative of pace (safety car,
+# in-lap, traffic, incident...). Same spirit as F1's 107 % qualifying rule.
 OUTLIER_FACTOR = 1.07
+
+# Approximate lap-time gain from burning fuel (s/lap). Common estimate in F1 analysis
+# (~1.5-1.8 kg of fuel per lap × ~0.03 s/kg).
+FUEL_EFFECT_PER_LAP = 0.055
 
 
 def clean_laps(laps: list[dict[str, Any]]) -> dict[int, float]:
-    """Devuelve {número de vuelta: tiempo} solo con vueltas representativas del ritmo:
-    quita la vuelta 1 (salida), las de salida de boxes, las que no tienen tiempo
-    y los outliers por encima del OUTLIER_FACTOR de la mediana."""
+    """Returns {lap number: lap time} for laps that represent race pace only: drops
+    lap 1 (standing start), pit-out laps, laps without a time and outliers above
+    OUTLIER_FACTOR times the median."""
     candidates = {
         lap["lap_number"]: lap["lap_duration"]
         for lap in laps
@@ -25,8 +28,8 @@ def clean_laps(laps: list[dict[str, Any]]) -> dict[int, float]:
 
 
 def pace_stats(times: list[float]) -> dict[str, float]:
-    """Resumen estadístico del ritmo. cv = coeficiente de variación (%):
-    desviación típica relativa a la media; cuanto más bajo, más consistente."""
+    """Summary statistics of pace. cv = coefficient of variation (%): standard
+    deviation relative to the mean."""
     mean = statistics.mean(times)
     std = statistics.stdev(times) if len(times) > 1 else 0.0
     return {
@@ -40,8 +43,8 @@ def pace_stats(times: list[float]) -> dict[str, float]:
 
 
 def head_to_head(a: dict[int, float], b: dict[int, float]) -> dict[str, float]:
-    """Compara vuelta a vuelta solo las vueltas limpias que ambos comparten.
-    delta_mean < 0 significa que A fue más rápido de media."""
+    """Lap-by-lap comparison restricted to the clean laps both drivers share.
+    delta_mean < 0 means driver A was faster on average."""
     common = sorted(a.keys() & b.keys())
     if not common:
         return {"common_laps": 0, "a_faster": 0, "delta_mean": 0.0}
@@ -53,18 +56,13 @@ def head_to_head(a: dict[int, float], b: dict[int, float]) -> dict[str, float]:
     }
 
 
-# Mejora aproximada del tiempo por vuelta al quemar combustible (s/vuelta).
-# Estimación habitual en análisis de F1 (~1.5-1.8 kg/vuelta × ~0.03 s/kg).
-FUEL_EFFECT_PER_LAP = 0.055
-
-
 def stint_degradation(
     clean: dict[int, float], lap_start: int, lap_end: int
 ) -> dict[str, float] | None:
-    """Ajusta una recta tiempo = a + b·vuelta a las vueltas limpias del stint.
-    b (pendiente) es la degradación observada en s/vuelta. Como el coche se aligera
-    al quemar combustible, la degradación real del neumático se estima como
-    b + FUEL_EFFECT_PER_LAP. Devuelve None si hay menos de 3 vueltas limpias."""
+    """Fits a line lap_time = a + b·lap to the clean laps of a stint. The slope b is
+    the observed degradation in s/lap. Since the car gets lighter as it burns fuel,
+    the tyre's real degradation is estimated as b + FUEL_EFFECT_PER_LAP.
+    Returns None if the stint has fewer than 3 clean laps."""
     points = [(n, t) for n, t in sorted(clean.items()) if lap_start <= n <= lap_end]
     if len(points) < 3:
         return None
@@ -80,8 +78,8 @@ def stint_degradation(
 
 
 def detrended_residuals(clean: dict[int, float], stints: list[dict[str, Any]]) -> list[float]:
-    """Por cada stint ajusta una recta (combustible + degradación) y devuelve los
-    residuos: cuánto se separa cada vuelta de la tendencia de su propio stint."""
+    """Fits a line per stint (fuel burn + degradation) and returns the residuals:
+    how far each lap is from its own stint's trend."""
     if not clean:
         return []
     last = max(clean)
@@ -97,10 +95,10 @@ def detrended_residuals(clean: dict[int, float], stints: list[dict[str, Any]]) -
 
 
 def robust_consistency(residuals: list[float]) -> float | None:
-    """Desviación típica de los residuos tras quitar outliers con la MAD
-    (|r - mediana| > 3·σ, con σ = 1.4826·MAD). Mide la regularidad del piloto
-    sin el efecto del combustible, la degradación ni vueltas anómalas.
-    Devuelve None si no hay datos suficientes."""
+    """Standard deviation of the residuals after removing outliers with the MAD
+    (|r - median| > 3σ, with σ = 1.4826·MAD). Measures how regular the driver is,
+    without the effect of fuel burn, degradation or abnormal laps.
+    Returns None if there is not enough data."""
     if len(residuals) < 3:
         return None
     med = statistics.median(residuals)
@@ -110,12 +108,12 @@ def robust_consistency(residuals: list[float]) -> float | None:
 
 
 def strategy_label(stints: list[dict[str, Any]]) -> str:
-    """'MEDIUM → HARD' a partir de los stints de un piloto (ordenados por stint_number).
-    Sirve para agrupar a los pilotos que hicieron la misma estrategia."""
+    """'MEDIUM → HARD' from a driver's stints (ordered by stint_number). Used to
+    group drivers who ran the same strategy."""
     ordered = sorted(stints, key=lambda s: s["stint_number"])
     return " → ".join(s["compound"] or "?" for s in ordered)
 
 
 def of_driver(rows: list[dict[str, Any]], driver_number: int) -> list[dict[str, Any]]:
-    """Filtra filas de OpenF1 (vueltas, stints...) de un piloto concreto."""
+    """Filters OpenF1 rows (laps, stints...) for a single driver."""
     return [r for r in rows if r["driver_number"] == driver_number]

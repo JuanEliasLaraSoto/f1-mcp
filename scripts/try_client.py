@@ -1,12 +1,12 @@
-"""Cliente MCP de prueba: hace de "Claude" contra nuestro servidor.
+"""Test MCP client: plays the role of Claude against our server, in memory.
 
-Uso:
-  uv run python probar_cliente.py                          -> tools (descripción + esquema)
-  uv run python probar_cliente.py TOOL '{"arg": valor}'    -> llama a una tool
-  uv run python probar_cliente.py recursos                 -> lista resources y plantillas
-  uv run python probar_cliente.py leer URI                 -> lee un resource
-  uv run python probar_cliente.py prompts                  -> lista prompts
-  uv run python probar_cliente.py prompt NOMBRE '{...}'    -> genera un prompt
+Usage:
+  uv run python scripts/try_client.py                         -> tools (description + schema)
+  uv run python scripts/try_client.py TOOL '{"arg": value}'   -> call a tool
+  uv run python scripts/try_client.py resources               -> list resources and templates
+  uv run python scripts/try_client.py read URI                -> read a resource
+  uv run python scripts/try_client.py prompts                 -> list prompts
+  uv run python scripts/try_client.py prompt NAME '{...}'     -> render a prompt
 """
 
 import asyncio
@@ -29,10 +29,10 @@ async def main() -> None:
                 tools = await session.list_tools()
                 for t in tools.tools:
                     print(f"=== {t.name} ===")
-                    print("Descripción:", t.description)
+                    print("Description:", t.description)
                     print(json.dumps(t.input_schema, indent=2))
 
-            elif args[0] == "recursos":
+            elif args[0] == "resources":
                 fixed = await session.list_resources()
                 templates = await session.list_resource_templates()
                 for r in fixed.resources:
@@ -40,7 +40,7 @@ async def main() -> None:
                 for t in templates.resource_templates:
                     print(f"{t.uri_template}  —  {t.description}")
 
-            elif args[0] == "leer":
+            elif args[0] == "read":
                 result = await session.read_resource(args[1])
                 print(result.contents[0].text)
 

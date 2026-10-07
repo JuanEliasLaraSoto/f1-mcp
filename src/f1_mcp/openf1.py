@@ -1,4 +1,4 @@
-"""Cliente de la API de OpenF1 con caché en SQLite y reintento ante 429."""
+"""OpenF1 API client with a SQLite cache and retries on 429."""
 
 import asyncio
 import json
@@ -11,18 +11,18 @@ import httpx
 
 from f1_mcp.config import BASE_URL, CACHE_PATH, MAX_RETRIES
 
-# Alias para poder sustituirlo en los tests y no esperar de verdad
+# Alias so tests can replace it and not actually wait
 _sleep = asyncio.sleep
 
 
 class OpenF1Error(Exception):
-    """OpenF1 no ha podido dar los datos: caída, timeout o límite de peticiones.
-    El mensaje está pensado para mostrárselo al usuario tal cual."""
+    """OpenF1 could not provide the data: outage, timeout or rate limit.
+    The message is meant to be shown to the user as is."""
 
 
 def _cache_key(endpoint: str, params: dict[str, Any]) -> str:
-    """'laps?{"driver_number": 16, "session_key": 9912}'. sort_keys hace que el
-    orden de los parámetros no cambie la clave."""
+    """'laps?{"driver_number": 16, "session_key": 9912}'. sort_keys makes the key
+    independent of parameter order."""
     return f"{endpoint}?{json.dumps(params, sort_keys=True)}"
 
 
@@ -44,7 +44,7 @@ def cache_get(key: str) -> list[dict[str, Any]] | None:
 
 def cache_put(key: str, data: list[dict[str, Any]]) -> None:
     with closing(_connect()) as conn:
-        with conn:  # abre una transacción y hace commit al salir
+        with conn:  # opens a transaction and commits on exit
             conn.execute(
                 "INSERT OR REPLACE INTO cache (key, body, fetched_at) VALUES (?, ?, ?)",
                 (key, json.dumps(data), time.time()),
@@ -52,10 +52,10 @@ def cache_put(key: str, data: list[dict[str, Any]]) -> None:
 
 
 async def get(endpoint: str, **params: Any) -> list[dict[str, Any]]:
-    """GET a un endpoint de OpenF1. Primero mira la caché; si no está, pide a la API
-    (reintentando con espera exponencial ante 429) y guarda la respuesta.
-    Parámetros None se ignoran. 404 = sin resultados. Cualquier otro fallo
-    (red, timeout, 429 persistente, 5xx) se convierte en OpenF1Error."""
+    """GET an OpenF1 endpoint. Checks the cache first; otherwise calls the API
+    (retrying with exponential backoff on 429) and stores the response.
+    None parameters are ignored. 404 = no results. Any other failure
+    (network, timeout, persistent 429, 5xx) is raised as OpenF1Error."""
     clean = {k: v for k, v in params.items() if v is not None}
     key = _cache_key(endpoint, clean)
 
@@ -72,17 +72,17 @@ async def get(endpoint: str, **params: Any) -> list[dict[str, Any]]:
                     continue
                 break
     except httpx.TimeoutException as exc:
-        raise OpenF1Error("OpenF1 está tardando demasiado en responder.") from exc
+        raise OpenF1Error("OpenF1 is taking too long to respond.") from exc
     except httpx.RequestError as exc:
-        raise OpenF1Error("No se puede conectar con OpenF1 (¿hay conexión a internet?).") from exc
+        raise OpenF1Error("Cannot connect to OpenF1 (is there an internet connection?).") from exc
 
     if r.status_code == 404:
         return []
     if r.status_code == 429:
-        raise OpenF1Error("Se ha alcanzado el límite de peticiones de OpenF1; espera un minuto.")
+        raise OpenF1Error("OpenF1's rate limit has been reached; wait a minute.")
     if r.status_code >= 400:
-        raise OpenF1Error(f"OpenF1 ha devuelto un error {r.status_code}.")
+        raise OpenF1Error(f"OpenF1 returned an error {r.status_code}.")
     data: list[dict[str, Any]] = r.json()
-    if data:  # no cacheamos vacíos: pueden ser una sesión aún sin datos
+    if data:  # empty responses are not cached: the session may not have data yet
         cache_put(key, data)
     return data

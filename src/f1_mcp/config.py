@@ -1,4 +1,4 @@
-"""Configuración del servidor: un único sitio para URLs, rutas y límites."""
+"""Server configuration: a single place for URLs, paths and limits."""
 
 from pathlib import Path
 

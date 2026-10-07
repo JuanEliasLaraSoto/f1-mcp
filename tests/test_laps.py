@@ -1,4 +1,4 @@
-"""Tools de vueltas (get_laps, compare_drivers, get_stints) con datos sintéticos."""
+"""Lap tools (get_laps, compare_drivers, get_stints) on synthetic data."""
 
 import httpx
 import respx
@@ -23,8 +23,8 @@ DRIVERS = [
 
 
 def make_laps(driver: int, base: float, n: int = 20) -> list[dict]:
-    """Vuelta 1 lenta (salida), vuelta 11 de salida de boxes y el resto con una
-    mejora de 0.05 s/vuelta (combustible) y un ruido alterno de ±0.1 s."""
+    """Slow lap 1 (standing start), a pit-out lap 11, and the rest getting
+    0.05 s/lap faster (fuel burn) with alternating ±0.1 s noise."""
     laps = []
     for lap in range(1, n + 1):
         t = base - 0.05 * lap + 0.1 * (-1) ** lap
@@ -66,28 +66,28 @@ def make_stints(driver: int) -> list[dict]:
 
 
 @respx.mock
-async def test_get_laps_tabla_y_vuelta_rapida() -> None:
+async def test_get_laps_table_and_fastest_lap() -> None:
     respx.get(f"{BASE_URL}/laps").mock(return_value=httpx.Response(200, json=make_laps(16, 83.0)))
 
     output = await get_laps(9912, 16)
 
     lines = output.splitlines()
-    assert lines[0].startswith("Vuelta | Tiempo")
-    assert "pit out" in lines[11]  # vuelta 11
-    assert "Vuelta rápida: 1:21.950" in output  # vuelta 19: 83 - 0.95 - 0.1
-    assert "Vueltas con tiempo: 20" in output
+    assert lines[0].startswith("Lap | Time")
+    assert "pit out" in lines[11]  # lap 11
+    assert "Fastest lap: 1:21.950" in output  # lap 19: 83 - 0.95 - 0.1
+    assert "Timed laps: 20" in output
 
 
 @respx.mock
-async def test_get_laps_sin_datos() -> None:
+async def test_get_laps_no_data() -> None:
     respx.get(f"{BASE_URL}/laps").mock(return_value=httpx.Response(404))
 
-    assert await get_laps(9912, 99) == "No hay vueltas del piloto #99 en la sesión 9912."
+    assert await get_laps(9912, 99) == "No laps found for driver #99 in session 9912."
 
 
 @respx.mock
-async def test_compare_drivers_detecta_al_mas_rapido() -> None:
-    laps = make_laps(16, 83.0) + make_laps(44, 83.3)  # HAM 0.3 s/vuelta más lento
+async def test_compare_drivers_finds_the_faster_driver() -> None:
+    laps = make_laps(16, 83.0) + make_laps(44, 83.3)  # HAM 0.3 s/lap slower
     respx.get(f"{BASE_URL}/laps").mock(return_value=httpx.Response(200, json=laps))
     respx.get(f"{BASE_URL}/stints").mock(
         return_value=httpx.Response(200, json=make_stints(16) + make_stints(44))
@@ -96,39 +96,39 @@ async def test_compare_drivers_detecta_al_mas_rapido() -> None:
 
     output = await compare_drivers(9912, 16, 44)
 
-    assert "LEC es 0.300 s/vuelta más rápido que HAM" in output
-    assert "18 vueltas comparables): LEC más rápido en 18" in output  # sin vuelta 1 ni 11
-    assert "Consistencia σ (s)" in output
+    assert "LEC is 0.300 s/lap faster than HAM" in output
+    assert "18 comparable laps): LEC faster in 18" in output  # no lap 1 or 11
+    assert "Consistency σ (s)" in output
 
 
 @respx.mock
-async def test_compare_drivers_sin_vueltas() -> None:
+async def test_compare_drivers_without_laps() -> None:
     respx.get(f"{BASE_URL}/laps").mock(return_value=httpx.Response(200, json=make_laps(16, 83.0)))
     respx.get(f"{BASE_URL}/stints").mock(return_value=httpx.Response(404))
     respx.get(f"{BASE_URL}/drivers").mock(return_value=httpx.Response(200, json=DRIVERS))
 
     output = await compare_drivers(9912, 16, 44)
 
-    assert output == "No hay vueltas suficientes para comparar a LEC y HAM en la sesión 9912."
+    assert output == "Not enough laps to compare LEC and HAM in session 9912."
 
 
 @respx.mock
-async def test_get_stints_compuestos_y_degradacion() -> None:
+async def test_get_stints_compounds_and_degradation() -> None:
     respx.get(f"{BASE_URL}/stints").mock(return_value=httpx.Response(200, json=make_stints(16)))
     respx.get(f"{BASE_URL}/laps").mock(return_value=httpx.Response(200, json=make_laps(16, 83.0)))
 
     output = await get_stints(9912, 16)
 
-    assert "Stint 1: MEDIUM | vueltas 1-10 (10)" in output
-    assert "Stint 2: HARD | vueltas 11-20 (10)" in output
-    # Los datos mejoran 0.05 s/vuelta: pendiente observada ≈ -0.05, corregida ≈ +0.005
-    assert "Degradación observada: -0.0" in output
-    assert "corrección de combustible aproximada" in output
+    assert "Stint 1: MEDIUM | laps 1-10 (10)" in output
+    assert "Stint 2: HARD | laps 11-20 (10)" in output
+    # The data improves 0.05 s/lap: observed slope ≈ -0.05, corrected ≈ +0.005
+    assert "Observed degradation: -0.0" in output
+    assert "fuel correction is an approximation" in output
 
 
 @respx.mock
-async def test_get_stints_sin_datos() -> None:
+async def test_get_stints_no_data() -> None:
     respx.get(f"{BASE_URL}/stints").mock(return_value=httpx.Response(404))
     respx.get(f"{BASE_URL}/laps").mock(return_value=httpx.Response(404))
 
-    assert await get_stints(9912, 16) == "No hay stints del piloto #16 en la sesión 9912."
+    assert await get_stints(9912, 16) == "No stints found for driver #16 in session 9912."

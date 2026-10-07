@@ -6,7 +6,7 @@ from f1_mcp.openf1 import BASE_URL
 
 
 @respx.mock
-async def test_list_sessions_incluye_session_key() -> None:
+async def test_list_sessions_includes_session_key() -> None:
     # respx intercepta la llamada a OpenF1 y devuelve esto en vez de ir a internet
     respx.get(f"{BASE_URL}/sessions").mock(
         return_value=httpx.Response(
@@ -30,9 +30,9 @@ async def test_list_sessions_incluye_session_key() -> None:
 
 
 @respx.mock
-async def test_list_sessions_sin_resultados_devuelve_mensaje_claro() -> None:
+async def test_list_sessions_without_results_returns_clear_message() -> None:
     respx.get(f"{BASE_URL}/sessions").mock(return_value=httpx.Response(404))
 
     output = await list_sessions(2025, "Narnia")
 
-    assert output == "No hay sesiones para 2025 en Narnia."
+    assert output == "No sessions found for 2025 in Narnia."

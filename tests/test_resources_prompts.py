@@ -1,5 +1,5 @@
-"""Resources y prompts probados a través del protocolo MCP real (cliente en memoria),
-igual que los usaría Claude."""
+"""Resources and prompts tested through the real MCP protocol (in-memory client),
+the same way Claude would use them."""
 
 import json
 
@@ -12,7 +12,7 @@ from f1_mcp.mcp.server import mcp_server
 from f1_mcp.openf1 import BASE_URL
 
 
-async def test_resources_y_prompts_registrados() -> None:
+async def test_resources_and_prompts_registered() -> None:
     async with InMemoryTransport(mcp_server) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
@@ -21,11 +21,11 @@ async def test_resources_y_prompts_registrados() -> None:
 
     uris = {t.uri_template for t in templates.resource_templates}
     assert uris == {"f1://sessions/{year}", "f1://session/{session_key}/results"}
-    assert {p.name for p in prompts.prompts} == {"analizar_carrera", "comparar_pilotos"}
+    assert {p.name for p in prompts.prompts} == {"analyze_race", "driver_duel"}
 
 
 @respx.mock
-async def test_leer_resource_de_resultados() -> None:
+async def test_read_results_resource() -> None:
     respx.get(f"{BASE_URL}/session_result").mock(
         return_value=httpx.Response(
             200,
@@ -55,13 +55,13 @@ async def test_leer_resource_de_resultados() -> None:
     assert [r["driver"] for r in data["results"]] == ["VER", "NOR"]
 
 
-async def test_prompt_comparar_pilotos_incluye_datos_y_tools() -> None:
+async def test_driver_duel_prompt_includes_arguments_and_tools() -> None:
     async with InMemoryTransport(mcp_server) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
             result = await session.get_prompt(
-                "comparar_pilotos",
-                {"year": "2025", "circuit": "Monza", "piloto_a": "Leclerc", "piloto_b": "Hamilton"},
+                "driver_duel",
+                {"year": "2025", "circuit": "Monza", "driver_a": "Leclerc", "driver_b": "Hamilton"},
             )
 
     text = result.messages[0].content.text

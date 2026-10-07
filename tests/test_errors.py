@@ -8,17 +8,17 @@ URL = f"{openf1.BASE_URL}/drivers"
 
 
 @respx.mock
-async def test_timeout_devuelve_mensaje_claro() -> None:
+async def test_timeout_returns_clear_message() -> None:
     respx.get(URL).mock(side_effect=httpx.ConnectTimeout("timeout"))
 
     output = await list_drivers(9912)
 
-    assert output.startswith("No he podido obtener los datos de OpenF1")
-    assert "tardando demasiado" in output
+    assert output.startswith("Could not get data from OpenF1")
+    assert "taking too long" in output
 
 
 @respx.mock
-async def test_error_500_devuelve_mensaje_claro() -> None:
+async def test_error_500_returns_clear_message() -> None:
     respx.get(URL).mock(return_value=httpx.Response(500))
 
     output = await list_drivers(9912)
@@ -27,7 +27,7 @@ async def test_error_500_devuelve_mensaje_claro() -> None:
 
 
 @respx.mock
-async def test_429_persistente_devuelve_mensaje_claro(monkeypatch) -> None:
+async def test_persistent_429_returns_clear_message(monkeypatch) -> None:
     async def no_sleep(_: float) -> None:
         pass
 
@@ -36,5 +36,5 @@ async def test_429_persistente_devuelve_mensaje_claro(monkeypatch) -> None:
 
     output = await list_drivers(9912)
 
-    assert "límite de peticiones" in output
+    assert "rate limit" in output
     assert route.call_count == openf1.MAX_RETRIES

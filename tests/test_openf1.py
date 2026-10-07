@@ -8,18 +8,18 @@ DATA = [{"driver_number": 16, "name_acronym": "LEC"}]
 
 
 @respx.mock
-async def test_segunda_llamada_sale_de_cache() -> None:
+async def test_second_call_comes_from_cache() -> None:
     route = respx.get(URL).mock(return_value=httpx.Response(200, json=DATA))
 
     first = await openf1.get("drivers", session_key=9912)
     second = await openf1.get("drivers", session_key=9912)
 
     assert first == second == DATA
-    assert route.call_count == 1  # la segunda no salió a internet
+    assert route.call_count == 1  # the second call never hit the network
 
 
 @respx.mock
-async def test_reintenta_tras_429(monkeypatch) -> None:
+async def test_retries_after_429(monkeypatch) -> None:
     async def no_sleep(_: float) -> None:
         pass
 
@@ -33,7 +33,7 @@ async def test_reintenta_tras_429(monkeypatch) -> None:
 
 
 @respx.mock
-async def test_no_cachea_respuestas_vacias() -> None:
+async def test_empty_responses_are_not_cached() -> None:
     route = respx.get(URL).mock(return_value=httpx.Response(404))
 
     await openf1.get("drivers", session_key=1)

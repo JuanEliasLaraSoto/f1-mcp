@@ -29,7 +29,7 @@ DRIVERS = [
 ]
 
 
-def test_strategy_label_ordena_por_stint() -> None:
+def test_strategy_label_sorts_by_stint() -> None:
     stints = [
         {"stint_number": 2, "compound": "HARD"},
         {"stint_number": 1, "compound": "MEDIUM"},
@@ -37,16 +37,16 @@ def test_strategy_label_ordena_por_stint() -> None:
     assert strategy_label(stints) == "MEDIUM → HARD"
 
 
-def test_formatos_de_tiempo_y_gap() -> None:
+def test_time_and_gap_formats() -> None:
     assert fmt_duration(4815.5) == "1:20:15.500"
     assert fmt_duration([80.1, 79.5, None]) == "1:19.500"
-    assert fmt_gap(0) == "líder"
+    assert fmt_gap(0) == "leader"
     assert fmt_gap(1.2345) == "+1.234 s" or fmt_gap(1.2345) == "+1.235 s"
     assert fmt_gap("+1 LAP") == "+1 LAP"
 
 
 @respx.mock
-async def test_list_sessions_filtra_por_circuito() -> None:
+async def test_list_sessions_filters_by_circuit() -> None:
     respx.get(f"{BASE_URL}/sessions").mock(return_value=httpx.Response(200, json=SESSIONS))
 
     output = await list_sessions(2025, "Italy", circuit="monza")
@@ -56,7 +56,7 @@ async def test_list_sessions_filtra_por_circuito() -> None:
 
 
 @respx.mock
-async def test_get_results_ordena_y_marca_abandonos() -> None:
+async def test_get_results_sorts_and_flags_retirements() -> None:
     respx.get(f"{BASE_URL}/session_result").mock(
         return_value=httpx.Response(
             200,
@@ -88,12 +88,12 @@ async def test_get_results_ordena_y_marca_abandonos() -> None:
 
     lines = (await get_results(2)).splitlines()
 
-    assert lines[0].startswith("P1") and "LEC" in lines[0] and "líder" in lines[0]
+    assert lines[0].startswith("P1") and "LEC" in lines[0] and "leader" in lines[0]
     assert "HAM" in lines[1] and "DNF" in lines[1]
 
 
 @respx.mock
-async def test_race_strategy_resume_estrategias() -> None:
+async def test_race_strategy_summarises_strategies() -> None:
     stints = [
         {
             "driver_number": 16,
@@ -137,5 +137,5 @@ async def test_race_strategy_resume_estrategias() -> None:
     output = await race_strategy(2)
 
     assert output.splitlines()[0].startswith("P1   LEC: MEDIUM (1-20) → HARD (21-53)")
-    assert "2 piloto(s): MEDIUM → HARD" in output
-    assert "Parada más rápida: LEC 2.3 s (vuelta 20)" in output
+    assert "2 driver(s): MEDIUM → HARD" in output
+    assert "Fastest stop: LEC 2.3 s (lap 20)" in output

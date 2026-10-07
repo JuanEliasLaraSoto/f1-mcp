@@ -1,5 +1,5 @@
-"""Resources MCP: datos de solo lectura con dirección (URI) que el cliente puede
-listar y adjuntar al contexto, como un documento. Devuelven JSON, no texto formateado."""
+"""MCP resources: read-only data with an address (URI) that the client can list and
+attach to the context, like a document. They return JSON, not formatted text."""
 
 from typing import Any
 
@@ -9,7 +9,7 @@ from f1_mcp.mcp.server import mcp_server
 
 @mcp_server.resource("f1://sessions/{year}", mime_type="application/json")
 async def sessions_resource(year: str) -> dict[str, Any]:
-    """Calendario de sesiones de un año: session_key, nombre, circuito, país y fecha."""
+    """Session calendar for a year: session_key, name, circuit, country and date."""
     sessions = await openf1.get("sessions", year=int(year))
     return {
         "year": int(year),
@@ -28,7 +28,7 @@ async def sessions_resource(year: str) -> dict[str, Any]:
 
 @mcp_server.resource("f1://session/{session_key}/results", mime_type="application/json")
 async def results_resource(session_key: str) -> dict[str, Any]:
-    """Clasificación final de una sesión en JSON, con siglas y equipo de cada piloto."""
+    """Final classification of a session as JSON, with each driver's acronym and team."""
     results = await openf1.get("session_result", session_key=int(session_key))
     drivers = await openf1.get("drivers", session_key=int(session_key))
     info = {d["driver_number"]: d for d in drivers}
