@@ -20,7 +20,7 @@ async def main() -> None:
                 print(json.dumps(t.input_schema, indent=2))
 
             # 2. Lo que Claude haría: llamar a una tool con argumentos
-            result = await session.call_tool("list_sessions", {"year": 2025, "country": "Italy"})
+            result = await session.call_tool("compare_drivers", {"session_key": 9912, "driver_a": 16, "driver_b": 44})
             print("\n=== Resultado de list_sessions ===")
             print(result.content[0].text)
 
