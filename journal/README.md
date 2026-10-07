@@ -1,9 +1,10 @@
-# Journal de ingeniería
+# Engineering journal
 
-Registro cronológico de decisiones de diseño y hallazgos de `f1-mcp`, una entrada por archivo.
+Chronological log of design decisions and findings for `f1-mcp`, one entry per file.
+See the [project README](../README.md) for the current state of the project.
 
-1. [Consistencia del piloto medida sobre residuos, no sobre tiempos brutos](01-consistencia-sobre-residuos.md)
-2. [Caché en SQLite y reintentos ante 429](02-cache-sqlite-y-reintentos.md)
-3. [Resources y prompts: las otras dos primitivas de MCP](03-resources-y-prompts.md)
-4. [Reorganización del código por responsabilidad](04-reorganizacion-por-modulos.md)
-5. [Calidad: errores amigables, ruff, mypy estricto y cobertura](05-calidad-errores-ruff-mypy-cobertura.md)
+1. [Driver consistency measured on residuals, not raw lap times](01-consistency-on-residuals.md)
+2. [SQLite cache and retries on 429](02-sqlite-cache-and-retries.md)
+3. [Resources and prompts: the other two MCP primitives](03-resources-and-prompts.md)
+4. [Reorganising the code by responsibility](04-module-reorganization.md)
+5. [Quality: friendly errors, ruff, strict mypy and coverage](05-quality-errors-ruff-mypy-coverage.md)
