@@ -21,11 +21,41 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "mypy>=2.4.0",
     "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
     "respx>=0.23.1",
     "ruff>=0.16.10",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# E/F: errores básicos · I: orden de imports · UP: sintaxis moderna · B: bugs típicos
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# El texto de los prompts se lee peor partido a mitad de frase
+"src/f1_mcp/mcp/prompts.py" = ["E501"]
+# Los datos de prueba (listas de diccionarios) se leen mejor en una línea
+"tests/*" = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src"]
+strict = true
+
+[tool.coverage.run]
+source = ["src/f1_mcp"]
+# main() solo arranca el servidor por stdio: se prueba a mano, no en los tests
+omit = ["src/f1_mcp/__init__.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
