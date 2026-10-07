@@ -119,3 +119,44 @@ async def compare_drivers(session_key: int, driver_a: int, driver_b: int) -> str
         f"(negativo = {na} más rápido).",
         "Criterio: se excluyen vuelta 1, salidas de boxes y vueltas >107% de la mediana.",
     ])
+
+
+@mcp_server.tool()
+async def get_stints(session_key: int, driver_number: int) -> str:
+    """Stints de un piloto (tramos con el mismo juego de neumáticos): compuesto,
+    vueltas, edad del neumático al montarlo, ritmo medio y degradación estimada
+    (pendiente del tiempo por vuelta, observada y corregida por consumo de combustible).
+    Útil para analizar estrategia y gestión de neumáticos."""
+    stints, laps = await asyncio.gather(
+        openf1.get("stints", session_key=session_key, driver_number=driver_number),
+        openf1.get("laps", session_key=session_key, driver_number=driver_number),
+    )
+    if not stints:
+        return f"No hay stints del piloto #{driver_number} en la sesión {session_key}."
+
+    clean = analysis.clean_laps(laps)
+    last_lap = max((lap["lap_number"] for lap in laps), default=0)
+
+    lines = []
+    for s in sorted(stints, key=lambda s: s["stint_number"]):
+        start, end = s["lap_start"], s["lap_end"] or last_lap
+        header = (
+            f"Stint {s['stint_number']}: {s['compound']} | vueltas {start}-{end} "
+            f"({end - start + 1}) | neumático con {s['tyre_age_at_start']} vueltas al montarlo"
+        )
+        deg = analysis.stint_degradation(clean, start, end)
+        if deg is None:
+            lines.append(f"{header}\n  Pocas vueltas limpias para estimar degradación.")
+        else:
+            lines.append(
+                f"{header}\n"
+                f"  Ritmo medio: {fmt_time(deg['mean'])} ({deg['laps']} vueltas limpias)\n"
+                f"  Degradación observada: {deg['slope']:+.3f} s/vuelta | "
+                f"corregida por combustible: {deg['slope_fuel_corrected']:+.3f} s/vuelta"
+            )
+
+    lines.append(
+        f"\nNota: corrección de combustible aproximada de "
+        f"{analysis.FUEL_EFFECT_PER_LAP} s/vuelta; la degradación corregida es una estimación."
+    )
+    return "\n".join(lines)

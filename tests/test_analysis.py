@@ -33,3 +33,24 @@ def test_head_to_head_solo_vueltas_comunes() -> None:
     assert h["common_laps"] == 2
     assert h["a_faster"] == 1
     assert h["delta_mean"] == 0.0
+
+
+def test_stint_degradation_recupera_la_pendiente() -> None:
+    from f1_mcp.analysis import FUEL_EFFECT_PER_LAP, stint_degradation
+
+    # Datos sintéticos: pierde exactamente 0.1 s por vuelta entre las vueltas 10 y 20
+    clean = {n: 90.0 + 0.1 * (n - 10) for n in range(10, 21)}
+    clean[5] = 85.0  # fuera del stint: se ignora
+
+    deg = stint_degradation(clean, 10, 20)
+
+    assert deg is not None
+    assert deg["laps"] == 11
+    assert round(deg["slope"], 6) == 0.1
+    assert round(deg["slope_fuel_corrected"], 6) == round(0.1 + FUEL_EFFECT_PER_LAP, 6)
+
+
+def test_stint_degradation_none_con_pocas_vueltas() -> None:
+    from f1_mcp.analysis import stint_degradation
+
+    assert stint_degradation({10: 90.0, 11: 90.1}, 10, 20) is None

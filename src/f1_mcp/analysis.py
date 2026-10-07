@@ -51,3 +51,29 @@ def head_to_head(a: dict[int, float], b: dict[int, float]) -> dict[str, float]:
         "a_faster": sum(d < 0 for d in deltas),
         "delta_mean": statistics.mean(deltas),
     }
+
+
+# Mejora aproximada del tiempo por vuelta al quemar combustible (s/vuelta).
+# Estimación habitual en análisis de F1 (~1.5-1.8 kg/vuelta × ~0.03 s/kg).
+FUEL_EFFECT_PER_LAP = 0.055
+
+
+def stint_degradation(
+    clean: dict[int, float], lap_start: int, lap_end: int
+) -> dict[str, float] | None:
+    """Ajusta una recta tiempo = a + b·vuelta a las vueltas limpias del stint.
+    b (pendiente) es la degradación observada en s/vuelta. Como el coche se aligera
+    al quemar combustible, la degradación real del neumático se estima como
+    b + FUEL_EFFECT_PER_LAP. Devuelve None si hay menos de 3 vueltas limpias."""
+    points = [(n, t) for n, t in sorted(clean.items()) if lap_start <= n <= lap_end]
+    if len(points) < 3:
+        return None
+    x = [n for n, _ in points]
+    y = [t for _, t in points]
+    slope, _intercept = statistics.linear_regression(x, y)
+    return {
+        "laps": len(points),
+        "mean": statistics.mean(y),
+        "slope": slope,
+        "slope_fuel_corrected": slope + FUEL_EFFECT_PER_LAP,
+    }
