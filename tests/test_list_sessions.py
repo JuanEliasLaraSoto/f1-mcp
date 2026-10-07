@@ -1,8 +1,8 @@
 import httpx
 import respx
 
-from f1_mcp.openf1 import BASE_URL
 from f1_mcp.mcp.tools.sessions import list_sessions
+from f1_mcp.openf1 import BASE_URL
 
 
 @respx.mock

@@ -2,10 +2,10 @@ import httpx
 import respx
 
 from f1_mcp.analysis import strategy_label
-from f1_mcp.openf1 import BASE_URL
 from f1_mcp.formatting import fmt_duration, fmt_gap
 from f1_mcp.mcp.tools.sessions import get_results, list_sessions
 from f1_mcp.mcp.tools.strategy import race_strategy
+from f1_mcp.openf1 import BASE_URL
 
 SESSIONS = [
     {
