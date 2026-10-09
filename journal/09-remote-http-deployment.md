@@ -18,4 +18,5 @@ any MCP client use it.
 ## Consequences
 - Live at https://217-154-7-81.sslip.io/mcp
 - No auth (public data). Risk: abuse exhausting OpenF1's rate limit.
-- Next: deploy job in GitHub Actions gated on tests and lint.
+- Continuous deployment followed: a GitHub Actions job deploys over SSH only after tests
+  and lint pass, then checks `/health` (see `.github/workflows/ci.yml`).

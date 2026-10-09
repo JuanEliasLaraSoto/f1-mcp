@@ -9,7 +9,7 @@ topics and formatting helpers. Every new phase made it bigger.
 
 ## Decision
 
-Split by responsibility, following the same layout as spotify-mcp:
+Split by responsibility:
 
 - `config.py`: API URL, cache path and retries in one place.
 - `formatting.py`: `fmt_time`, `fmt_duration`, `fmt_gap`.
