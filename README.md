@@ -1,5 +1,16 @@
 # f1-mcp
 
+## Live server
+
+f1-mcp is deployed on a VPS (Docker + Caddy, automatic HTTPS). Connect any MCP client:
+
+```bash
+claude mcp add --transport http f1-mcp https://217-154-7-81.sslip.io/mcp
+```
+
+Health check: https://217-154-7-81.sslip.io/health
+
+
 [![CI](https://github.com/JuanEliasLaraSoto/f1-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/JuanEliasLaraSoto/f1-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)
