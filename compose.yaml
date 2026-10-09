@@ -1,0 +1,23 @@
+services:
+  f1-mcp:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - f1-cache:/root/.cache/f1-mcp
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - f1-mcp
+
+volumes:
+  f1-cache:
+  caddy-data:
