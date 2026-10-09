@@ -11,3 +11,4 @@ See the [project README](../README.md) for the current state of the project.
 6. [Codebase in English](06-codebase-in-english.md)
 7. [Connected to Claude: first real conversation](07-connected-to-claude.md)
 - [08 - CLAUDE.md and a spec-driven workflow](08-claude-md-and-spec-driven-workflow.md)
+- [09 - Remote HTTP deployment](09-remote-http-deployment.md)
