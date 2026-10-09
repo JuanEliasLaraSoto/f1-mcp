@@ -12,7 +12,7 @@ from pathlib import Path
 import pymupdf
 
 from f1_mcp import config
-from f1_mcp.regulations import chunk_articles, clean_lines
+from f1_mcp.regulations import chunk_regulations
 
 
 def pdf_lines(pdf: Path) -> list[str]:
@@ -21,7 +21,7 @@ def pdf_lines(pdf: Path) -> list[str]:
 
 
 if __name__ == "__main__":
-    chunks = chunk_articles(clean_lines(pdf_lines(Path(sys.argv[1]))))
+    chunks = chunk_regulations(pdf_lines(Path(sys.argv[1])))
     out = config.REGULATIONS_CHUNKS_PATH
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps(chunks, ensure_ascii=False, indent=2) + "\n")

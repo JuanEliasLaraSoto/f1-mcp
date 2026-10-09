@@ -9,7 +9,7 @@ from f1_mcp.mcp.server import mcp_server
 @mcp_server.tool()
 async def search_regulations(query: str, k: int = 5) -> str:
     """Searches the 2026 FIA F1 Sporting Regulations and returns the most relevant
-    articles with their number (e.g. B55.7), so you can cite the rule behind an event:
+    articles with their number (e.g. B5.13.2), so you can cite the rule behind an event:
     a penalty, a Safety Car, track limits, parc fermé, tyre rules, points...
     `query` must be in English (translate the user's question first); describe the
     situation or rule, e.g. 'driver overtakes under Safety Car'. `k` is how many
@@ -25,4 +25,4 @@ async def search_regulations(query: str, k: int = 5) -> str:
         return "The regulations index is not built on this server (run f1-mcp-build-index)."
     if not hits:
         return "The regulations index is empty."
-    return "\n\n".join(f"[{h.id}] {h.title} (similarity {h.similarity})\n{h.text}" for h in hits)
+    return "\n\n".join(f"[{h.ref}] {h.title} (similarity {h.similarity})\n{h.text}" for h in hits)

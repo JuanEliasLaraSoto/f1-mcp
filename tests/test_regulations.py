@@ -10,19 +10,70 @@ from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
 from f1_mcp import config, regulations
 from f1_mcp.mcp.tools.regulations import search_regulations
 
+HEADER = [  # page header block exactly as PyMuPDF extracts it (Section B, Issue 09)
+    "SECTION B: SPORTING REGULATIONS ",
+    " ",
+    "0  B ",
+    "B46 ",
+    "2026 Formula 1 Regulations - Section B [Sporting] ",
+    "©2026 Fédération Internationale de l’Automobile ",
+    "01 October 2026",
+    "Issue 09",
+]
 PDF_LINES = [
-    "SECTION B: SPORTING REGULATIONS",
-    "B55.7 Safety Car 42",  # table of contents entry, with page number
-    "B1 2026 Formula 1: Sporting Regulations",  # page header
-    "©2026 Fédération Internationale de l'Automobile",  # page footer
-    "1 October 2026",
-    "",
-    "B55.7 Safety Car",
-    "B55.7.1 When the Safety Car is deployed, no car may overtake another car",
-    "on the track until the cars pass the Safety Car line.",
-    "B55.7.2 Short.",
-    "B48.1 Pit lane",
-    "B48.1.1 The speed limit in the pit lane is 80 km/h during the whole Competition.",
+    *HEADER,
+    # table of contents: numbers, headings and page numbers on separate lines
+    "ARTICLE B1: ORGANISATION OF A COMPETITION ",
+    "4 ",
+    "B1.8 ",
+    "Driving ",
+    "12 ",
+    "APPENDIX B3: INFORMATION REQUIRED 90 DAYS BEFORE A COMPETITION ",
+    "90 ",
+    *HEADER,
+    # body
+    "ARTICLE B1: ORGANISATION OF A COMPETITION ",
+    "Advisory Committee: SAC  ",
+    "Governance: F1 Commission / WMSC ",
+    "B1.8 ",
+    "Driving ",
+    "B1.8.1 ",
+    "The driver must drive the F1 Car alone and unaided. ",
+    "ARTICLE B5: TOTAL TIME CLASSIFIED SESSIONS (TTCS) ",
+    "B5.13 ",
+    "Safety Car (SC) ",
+    "The Safety Car will be used only if Competitors or officials are in immediate physical ",
+    "danger on or near the track. ",
+    "B5.13.2 ",
+    "During a SC Deployment ",
+    "No driver may overtake another F1 Car on the track, including the Safety Car, unless ",
+    *HEADER,  # page break in the middle of a sentence
+    "signalled to do so. The exceptions are listed in Articles B5.10.6, B5.10.8 and ",
+    "B5.15.3 shall remain unchanged. ",  # wrapped cross-reference, not a new article
+    "B5.13.5 ",
+    "Duration of SC Period ",
+    "a. ",
+    "Except under Article B5.13.4c, the Safety Car shall be used at least until the leader is ",
+    "behind it. ",
+    "ARTICLE B6: TYRE LIMITATIONS ",
+    "B6.1 ",
+    "Supply Of Tyres ",
+    "B6.1.1 ",
+    "The pit lane speed limit is 80 km/h during the whole Competition. ",
+    "APPENDIX B1: DEFINITIONS ",
+    "“Fast Lane”: The Pit Lane will be divided into two lanes, the lane closest to the pit wall ",
+    "will be designated the Fast Lane. ",
+    "“Inner Lane”: The lane closest to the garages will be designated the Inner lane. ",
+    "APPENDIX B2: PARC FERME REQUIRED & PERMITTED WORKS ",
+    "1. BRAKES ",
+    " 1.1 Brake friction material may be removed, measured, de-glazed and refitted ",
+    "APPENDIX B3: INFORMATION REQUIRED 90 DAYS BEFORE A COMPETITION ",
+    "1. ",
+    "NAME AND ADDRESS OF THE NATIONAL SPORTING AUTHORITY (ASN). ",
+    "APPENDIX B5: APPROVED CHANGES TO SECTION B FOR SUBSEQUENT YEARS ",
+    "B2.5.2 ",
+    "Race Session Distance ",
+    "The distance of the Race shall exceed 305km. ",
 ]
 
 
@@ -53,29 +104,91 @@ class KeywordEmbedding(EmbeddingFunction[Documents]):
         return KeywordEmbedding()
 
 
-def test_clean_lines_drops_headers_footers_and_blanks():
-    lines = list(regulations.clean_lines(PDF_LINES))
-    assert not any(line.startswith(("B1 2026", "©", "SECTION B")) for line in lines)
-    assert "1 October 2026" not in lines
-    assert "" not in lines
+def chunks() -> list[regulations.Chunk]:
+    return regulations.chunk_regulations(PDF_LINES)
 
 
-def test_chunk_articles_one_chunk_per_sub_article():
-    chunks = regulations.chunk_articles(regulations.clean_lines(PDF_LINES))
-    by_id = {c["id"]: c for c in chunks}
-    # B55.7 and B48.1 are bare headings, B55.7.2 is too short: all dropped
-    assert set(by_id) == {"B55.7.1", "B48.1.1"}
-    sc = by_id["B55.7.1"]
-    assert sc["article"] == "B55.7"
-    assert sc["title"] == "Safety Car"  # page number from the TOC stripped
-    assert sc["text"].endswith("pass the Safety Car line.")  # continuation line joined
+def by_ref() -> dict[str, list[regulations.Chunk]]:
+    out: dict[str, list[regulations.Chunk]] = {}
+    for c in chunks():
+        out.setdefault(c["ref"], []).append(c)
+    return out
+
+
+def test_clean_lines_drops_page_headers_and_boilerplate():
+    lines = list(regulations.clean_lines(HEADER + ["Governance: F1 Commission / WMSC", "a. "]))
+    assert lines == ["a."]
+
+
+def test_table_of_contents_and_later_appendices_are_skipped():
+    refs = set(by_ref())
+    assert refs == {
+        "B1.8.1",
+        "B5.13",
+        "B5.13.2",
+        "B5.13.5",
+        "B6.1.1",
+        "Appendix B1",
+        "Appendix B2.1",
+    }
+    # Appendix B5 (2027 changes) reuses 2026 numbers: it must not leak in
+    assert not any("305km" in c["text"] for c in chunks())
+
+
+def test_titles_carry_the_heading_path():
+    refs = by_ref()
+    assert refs["B1.8.1"][0]["title"] == "Driving"
+    assert refs["B5.13"][0]["title"] == "Safety Car (SC)"
+    assert refs["B5.13.5"][0]["title"] == "Safety Car (SC) > Duration of SC Period"
+    assert refs["Appendix B1"][0]["title"] == "Definitions > Fast Lane"
+    assert refs["Appendix B2.1"][0]["title"] == "Parc Fermé Required & Permitted Works > Brakes"
+
+
+def test_page_breaks_and_cross_references_stay_in_the_text():
+    text = by_ref()["B5.13.2"][0]["text"]
+    assert "unless signalled to do so." in text  # page header removed mid-sentence
+    assert text.endswith("B5.15.3 shall remain unchanged.")
+    assert "B5.15.3" not in by_ref()
+
+
+def test_list_markers_are_text_not_headings():
+    assert by_ref()["B5.13.5"][0]["text"].startswith("a. Except under Article B5.13.4c")
+
+
+def test_repeated_refs_get_unique_ids():
+    ids = [c["id"] for c in chunks()]
+    assert len(ids) == len(set(ids))
+    assert [c["id"] for c in by_ref()["Appendix B1"]] == ["Appendix B1", "Appendix B1~2"]
+
+
+def test_long_text_is_split_by_sentence():
+    text = " ".join(f"Sentence number {i} is here." for i in range(100))
+    parts = regulations.split_text(text, max_chars=200)
+    assert all(len(p) <= 200 for p in parts)
+    assert " ".join(parts) == text
+
+
+def test_long_articles_get_numbered_part_ids():
+    long_body = [f"Sentence number {i} about the Safety Car. " for i in range(60)]
+    lines = ["ARTICLE B1: X", "B1.1 ", "Driving ", "B1.1.1 ", *long_body]
+    parts = regulations.chunk_regulations(lines)
+    assert len(parts) > 1
+    assert parts[0]["id"] == "B1.1.1#1" and parts[1]["id"] == "B1.1.1#2"
+    assert {p["ref"] for p in parts} == {"B1.1.1"}
+
+
+def test_is_heading():
+    assert regulations.is_heading("Order of Cars Behind the SC")
+    assert regulations.is_heading("Safety Car (SC)")
+    assert not regulations.is_heading("The driver must drive the F1 Car alone and unaided.")
+    assert not regulations.is_heading("a.")
+    assert not regulations.is_heading("danger on or near the track")
 
 
 @pytest.fixture
 def index(tmp_path, monkeypatch):
-    chunks = regulations.chunk_articles(regulations.clean_lines(PDF_LINES))
     db = tmp_path / "chroma"
-    regulations.build_index(chunks, db, embedding_function=KeywordEmbedding())
+    regulations.build_index(chunks(), db, embedding_function=KeywordEmbedding())
     # Chroma reopens a collection with its default (downloaded) model unless told
     # otherwise, so the search must also get the fake embedding function.
     collection = regulations._client(db).get_collection(
@@ -86,27 +199,27 @@ def index(tmp_path, monkeypatch):
 
 
 def test_build_index_is_rebuilt_from_scratch(index):
-    chunks = regulations.chunk_articles(regulations.clean_lines(PDF_LINES))
-    n = regulations.build_index(chunks[:1], index, embedding_function=KeywordEmbedding())
+    n = regulations.build_index(chunks()[:1], index, embedding_function=KeywordEmbedding())
     assert n == 1
 
 
 def test_search_ranks_the_relevant_article_first(index):
-    hits = regulations.search("overtake under the Safety Car", k=2)
-    assert [h.id for h in hits] == ["B55.7.1", "B48.1.1"]
+    hits = regulations.search("speed limit in the pit lane", k=3)
+    assert hits[0].ref == "B6.1.1"
     assert hits[0].similarity > hits[1].similarity
-    assert hits[0].title == "Safety Car"
+    assert hits[0].title == "Supply Of Tyres"
+    assert hits[0].text.startswith("The pit lane speed limit")  # title not repeated
 
 
 async def test_tool_returns_citable_articles(index):
     text = await search_regulations("pit lane speed limit", k=1)
-    assert text.startswith("[B48.1.1] Pit lane (similarity")
+    assert text.startswith("[B6.1.1] Supply Of Tyres (similarity")
     assert "80 km/h" in text
 
 
 async def test_tool_clamps_k(index):
     text = await search_regulations("Safety Car", k=50)
-    assert text.count("(similarity") == 2
+    assert text.count("(similarity") == len(chunks())  # fewer than 10 in this index
 
 
 async def test_tool_empty_query(index):
