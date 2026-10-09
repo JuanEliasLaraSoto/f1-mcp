@@ -1,7 +1,7 @@
 [project]
 name = "f1-mcp"
 version = "0.1.0"
-description = "Add your description here"
+description = "MCP server for Formula 1 race analysis on OpenF1 data, with RAG over the FIA Sporting Regulations"
 readme = "README.md"
 authors = [
     { name = "Juan Lara", email = "juanelara03@gmail.com" }
