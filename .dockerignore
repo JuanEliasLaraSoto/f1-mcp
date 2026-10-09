@@ -10,3 +10,5 @@ scripts
 .mypy_cache
 .ruff_cache
 .pytest_cache
+data/*.pdf
+data/chroma
