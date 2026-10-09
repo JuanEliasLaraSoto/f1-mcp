@@ -9,7 +9,7 @@ is exactly the invented-data failure this project tries to avoid.
 - New tool `search_regulations(query, k)`: retrieval only, over the 2026 FIA Sporting
   Regulations (Section B, Issue 09). The client model writes the answer and cites the
   article number; the server makes no LLM call.
-- Chunking by article number (`B55.7.1`), not fixed size: the regulations are already
+- Chunking by article number (`B5.13.2`), not fixed size: the regulations are already
   split into self-contained units and that number is the citation. Table-of-contents
   duplicates are resolved by keeping the longest version (the body).
 - Chroma as the vector store, persisted to disk, cosine distance. A NumPy array would
