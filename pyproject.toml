@@ -41,13 +41,13 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-# E/F: errores básicos · I: orden de imports · UP: sintaxis moderna · B: bugs típicos
+# E/F: basic errors · I: import order · UP: modern syntax · B: common bugs
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.per-file-ignores]
-# El texto de los prompts se lee peor partido a mitad de frase
+# Prompt text reads worse when split mid-sentence
 "src/f1_mcp/mcp/prompts.py" = ["E501"]
-# Los datos de prueba (listas de diccionarios) se leen mejor en una línea
+# Test data (lists of dicts) reads better on one line
 "tests/*" = ["E501"]
 
 [tool.mypy]
@@ -57,7 +57,7 @@ strict = true
 
 [tool.coverage.run]
 source = ["src/f1_mcp"]
-# main() solo arranca el servidor por stdio: se prueba a mano, no en los tests
+# main() only starts the server: tested by hand, not in the test suite
 omit = ["src/f1_mcp/__init__.py"]
 
 [tool.coverage.report]

@@ -1,5 +1,5 @@
 repos:
-  # Limpieza básica: espacios al final de línea, salto de línea final, YAML/TOML válidos
+  # Basic hygiene: trailing whitespace, final newline, valid YAML/TOML
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -8,7 +8,7 @@ repos:
       - id: check-yaml
       - id: check-toml
 
-  # Ruff: lint (arreglando lo automático) y formato
+  # Ruff: lint (auto-fixing what it can) and format
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.8
     hooks:
@@ -16,7 +16,7 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  # mypy con el entorno del proyecto (ve las mismas librerías que el CI)
+  # mypy in the project environment (sees the same libraries as CI)
   - repo: local
     hooks:
       - id: mypy
