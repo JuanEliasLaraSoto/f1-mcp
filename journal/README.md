@@ -12,3 +12,4 @@ See the [project README](../README.md) for the current state of the project.
 7. [Connected to Claude: first real conversation](07-connected-to-claude.md)
 - [08 - CLAUDE.md and a spec-driven workflow](08-claude-md-and-spec-driven-workflow.md)
 - [09 - Remote HTTP deployment](09-remote-http-deployment.md)
+- [10 - Regulations RAG](10-regulations-rag.md)

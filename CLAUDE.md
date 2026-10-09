@@ -35,9 +35,13 @@ to LLM clients: lap times, stints, pit stops, results, and derived analysis
   `OpenF1Error` with user-readable messages.
 - `analysis.py`: pure functions, no I/O. All the maths lives here.
 - `formatting.py`: lap time, duration and gap formatting.
+- `regulations.py`: regulations RAG. Pure chunking by article number + Chroma index and
+  search. `data/regulations_chunks.json` is committed; the index (`data/chroma/`) is built
+  from it with `uv run f1-mcp-build-index` (the Docker image does it at build time).
+  Regenerate the JSON from a new FIA PDF with `scripts/extract_regulations.py`.
 - `mcp/server.py`: creates `mcp_server`; imports prompts, resources and tools at the
   bottom to register them (avoids circular imports).
-- `mcp/tools/*.py`: tools grouped by topic (sessions, laps, strategy).
+- `mcp/tools/*.py`: tools grouped by topic (sessions, laps, strategy, regulations).
 - `mcp/resources.py`: `f1://sessions/{year}`, `f1://session/{session_key}/results` (JSON).
 - `mcp/prompts.py`: `analyze_race`, `driver_duel`.
 - `mcp/errors.py`: `@friendly_errors` turns `OpenF1Error` into a message for the model.

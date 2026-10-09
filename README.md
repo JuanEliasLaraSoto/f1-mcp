@@ -110,6 +110,7 @@ for example, Norris' 5.9 s stop next to Piastri's 1.9 s.
 | `compare_drivers(session_key, driver_a, driver_b)` | Pace, consistency and lap-by-lap duel |
 | `get_stints(session_key, driver_number)` | Stints, compounds and tyre degradation |
 | `race_strategy(session_key)` | Strategy of the whole grid |
+| `search_regulations(query, k?)` | FIA Sporting Regulations articles relevant to a situation (RAG over Chroma) |
 | `ping()` | Health check |
 
 **Resources** — read-only data the user can attach, returned as JSON:
@@ -142,12 +143,17 @@ graph TD
     Resources --> Client
     Client <--> Cache
     Client --> API
+    Tools --> Regs["regulations.py<br/>Chroma + local embeddings"]
 ```
 
 - **stdio transport**: the host launches the server locally; no network port, no auth.
 - **SQLite cache**: OpenF1's free tier allows 3 requests/s and 30/min, and a single question
   can chain several tools. Past sessions never change, so responses are cached forever
   ([journal 02](journal/02-sqlite-cache-and-retries.md)).
+- **Regulations RAG**: the FIA Sporting Regulations are split by article number, embedded
+  locally (all-MiniLM-L6-v2) and stored in Chroma, so the model can cite the rule behind a
+  penalty or a Safety Car ([spec](specs/regulations-search.md),
+  [journal 10](journal/10-regulations-rag.md)).
 - **Retries and friendly errors**: 429s are retried with exponential backoff; timeouts and
   server errors become a readable message instead of a stack trace.
 
@@ -216,12 +222,13 @@ src/f1_mcp/
 ├── openf1.py          HTTP client: SQLite cache, retries, OpenF1Error
 ├── analysis.py        pure maths: clean laps, pace, residuals, degradation
 ├── formatting.py      lap times and gaps
+├── regulations.py     regulations RAG: chunking and Chroma search
 └── mcp/
     ├── server.py      creates the MCPServer and registers everything
     ├── errors.py      friendly_errors decorator
     ├── resources.py
     ├── prompts.py
-    └── tools/         sessions.py · laps.py · strategy.py
+    └── tools/         sessions.py · laps.py · strategy.py · regulations.py
 ```
 
 ## License
