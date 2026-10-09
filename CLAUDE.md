@@ -30,7 +30,8 @@ to LLM clients: lap times, stints, pit stops, results, and derived analysis
 ## Architecture (src/f1_mcp/)
 
 - `config.py`: base URL, cache path, retry count.
-- `openf1.py`: the ONLY module that talks to the network. `get(endpoint, **params)` with
+- `openf1.py`: the ONLY module that talks to the network at runtime (the embedding model
+  is downloaded once, when the regulations index is built). `get(endpoint, **params)` with
   SQLite cache (empty responses are not cached), exponential backoff on 429, and
   `OpenF1Error` with user-readable messages.
 - `analysis.py`: pure functions, no I/O. All the maths lives here.
@@ -49,13 +50,16 @@ to LLM clients: lap times, stints, pit stops, results, and derived analysis
 ## Adding a tool
 
 1. Write the spec in `specs/`.
-2. Data fetching goes through `openf1.get`; maths goes in `analysis.py` as a pure function.
-3. Add the tool in the right `mcp/tools/` module with `@mcp_server.tool()` and
-   `@friendly_errors`. The docstring and type hints ARE the schema the model sees:
-   say when to use the tool and what each argument means.
-4. Tests: unit tests for the analysis with synthetic data of known properties, and a
-   tool test with OpenF1 mocked by `respx`. Never hit the real API in tests; the autouse
-   fixture in `tests/conftest.py` already isolates the cache.
+2. OpenF1 tools: data fetching goes through `openf1.get`; maths goes in `analysis.py` as a
+   pure function. Other data sources (e.g. the regulations index) get their own module
+   with the pure logic separated from the I/O, like `regulations.py`.
+3. Add the tool in the right `mcp/tools/` module with `@mcp_server.tool()`. OpenF1 tools
+   also get `@friendly_errors`; other tools catch their own errors and return a readable
+   message. The docstring and type hints ARE the schema the model sees: say when to use
+   the tool and what each argument means.
+4. Tests: unit tests for the pure logic with synthetic data of known properties, and a
+   tool test with no network: OpenF1 mocked by `respx` (the autouse fixture in
+   `tests/conftest.py` already isolates the cache), Chroma with a fake embedding function.
 5. Check it by hand with `scripts/try_client.py`.
 
 ## Conventions
