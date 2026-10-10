@@ -1,0 +1,34 @@
+{"question": "What is the penalty for exceeding track limits?", "relevant": ["B1.8.6"], "note": "vocabulary gap: the rule says 'leave the track'"}
+{"question": "How fast can cars go in the pit lane?", "relevant": ["B1.6.3"], "note": ""}
+{"question": "What happens if a driver moves before the start lights go out?", "relevant": ["B5.11.1"], "note": "jump start = 'False Start'"}
+{"question": "Can teams refuel the car during a pit stop?", "relevant": ["B1.5.9"], "note": ""}
+{"question": "How long is a Grand Prix race?", "relevant": ["B2.5.2", "B2.5.3"], "note": ""}
+{"question": "What is the maximum time a race can last?", "relevant": ["B2.5.3"], "note": ""}
+{"question": "How many engines can a driver use in a season?", "relevant": ["B8.2.2", "B8.2.3"], "note": ""}
+{"question": "What grid penalty does a driver get for using an extra engine?", "relevant": ["B8.2.8"], "note": ""}
+{"question": "From when are the cars locked in parc ferme so the setup cannot be changed?", "relevant": ["B3.5.1"], "note": ""}
+{"question": "What must drivers do while the Virtual Safety Car is active?", "relevant": ["B5.12.2"], "note": ""}
+{"question": "What happens when the race is red flagged?", "relevant": ["B5.14.2"], "note": ""}
+{"question": "How is the starting grid of the Grand Prix decided?", "relevant": ["B2.5.4"], "note": ""}
+{"question": "When are the cars weighed?", "relevant": ["B3.2.1"], "note": ""}
+{"question": "How many sets of tyres does each driver get for the weekend?", "relevant": ["B6.2.4", "B6.3.4"], "note": ""}
+{"question": "Do drivers have to use two different tyre compounds in the race?", "relevant": ["B6.3.6"], "note": "'compounds' vs 'specifications'"}
+{"question": "When can a driver use Overtake mode?", "relevant": ["B7.2.2", "B7.2.3"], "note": ""}
+{"question": "How does a driver serve a drive-through penalty?", "relevant": ["B1.9.6"], "note": ""}
+{"question": "Can a team appeal a time penalty?", "relevant": ["B1.9.7"], "note": ""}
+{"question": "When can lapped cars unlap themselves behind the Safety Car?", "relevant": ["B5.13.4"], "note": ""}
+{"question": "Who wins if the race reaches the two hour limit?", "relevant": ["B2.5.5", "B2.5.3"], "note": ""}
+{"question": "How many different drivers can a team use in a season?", "relevant": ["B1.7.1"], "note": ""}
+{"question": "Who must attend the podium ceremony?", "relevant": ["B10.2.1"], "note": ""}
+{"question": "What happens when it is very hot on race day?", "relevant": ["B1.5.10"], "note": "'very hot' vs 'Heat Index'"}
+{"question": "What changes when rain is expected for the race?", "relevant": ["B1.5.11"], "note": ""}
+{"question": "Can drivers overtake on the formation lap?", "relevant": ["B5.6.4"], "note": ""}
+{"question": "What penalties can the stewards give a driver who causes a collision in the race?", "relevant": ["B1.9.5"], "note": ""}
+{"question": "When can drivers open the movable rear wing?", "relevant": ["B7.1.2", "B7.1.1"], "note": "vocabulary gap: 'Driver Adjustable Bodywork'"}
+{"question": "What happens to a driver who collects too many reprimands?", "relevant": ["B1.9.5"], "note": ""}
+{"question": "What counts as an unsafe release from the pit box?", "relevant": ["B1.6.2"], "note": ""}
+{"question": "Can a driver start the race from the pit lane?", "relevant": ["B5.3.1"], "note": ""}
+{"question": "How many points does the race winner score?", "relevant": [], "note": "points are not in Section B"}
+{"question": "What is the minimum weight of the car?", "relevant": [], "note": "Section C (Technical)"}
+{"question": "What is the budget cap for a team?", "relevant": [], "note": "Section D (Financial)"}
+{"question": "How many races are in the championship calendar?", "relevant": [], "note": "not in the regulations"}
