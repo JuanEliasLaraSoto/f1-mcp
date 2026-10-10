@@ -8,6 +8,7 @@ import pytest
 from chromadb.api.types import Documents, EmbeddingFunction, Embeddings
 
 from f1_mcp import config, regulations
+from f1_mcp.mcp.tools import regulations as tool_module
 from f1_mcp.mcp.tools.regulations import search_regulations
 
 HEADER = [  # page header block exactly as PyMuPDF extracts it (Section B, Issue 09)
@@ -195,7 +196,12 @@ def index(tmp_path, monkeypatch):
         regulations.COLLECTION, embedding_function=KeywordEmbedding()
     )
     monkeypatch.setattr(regulations, "_collection", lambda: collection)
-    return db
+    # The fake embeddings give lower similarities than the real model: no threshold
+    # in the tool tests, except where the threshold itself is tested.
+    monkeypatch.setattr(tool_module, "MIN_SIMILARITY", 0.0)
+    regulations._index.cache_clear()
+    yield db
+    regulations._index.cache_clear()
 
 
 def test_build_index_is_rebuilt_from_scratch(index):
@@ -203,12 +209,47 @@ def test_build_index_is_rebuilt_from_scratch(index):
     assert n == 1
 
 
+def test_tokenize_drops_accents_case_and_stopwords():
+    assert regulations.tokenize("What is the Parc Fermé rule?") == ["parc", "ferme", "rule"]
+
+
+def test_bm25_prefers_rare_matching_terms():
+    bm25 = regulations.BM25(
+        ["the car on the track", "the car in parc ferme", "the car in the pits"]
+    )
+    scores = bm25.scores("car parc ferme")
+    assert scores.index(max(scores)) == 1
+    # "car" is in every document (all of equal length): same small score everywhere
+    assert scores[0] == scores[2] > 0
+    assert bm25.scores("monaco") == [0.0, 0.0, 0.0]
+
+
+def test_rrf_rewards_items_ranked_well_by_both_lists():
+    fused = regulations.rrf([["a", "b", "c"], ["d", "b", "e"]])
+    assert fused[0] == "b"  # 2nd in both lists beats 1st in only one
+    assert set(fused) == {"a", "b", "c", "d", "e"}
+
+
 def test_search_ranks_the_relevant_article_first(index):
     hits = regulations.search("speed limit in the pit lane", k=3)
     assert hits[0].ref == "B6.1.1"
-    assert hits[0].similarity > hits[1].similarity
     assert hits[0].title == "Supply Of Tyres"
     assert hits[0].text.startswith("The pit lane speed limit")  # title not repeated
+
+
+@pytest.mark.parametrize("mode", ["vector", "bm25", "hybrid"])
+def test_every_mode_finds_an_exact_match(index, mode):
+    assert regulations.search("brake friction material", k=1, mode=mode)[0].ref == "Appendix B2.1"
+
+
+def test_search_returns_one_hit_per_article(index):
+    refs = [h.ref for h in regulations.search("lane closest designated", k=10)]
+    assert refs.count("Appendix B1") == 1  # two definitions share the citation
+    assert len(refs) == len(set(refs))
+
+
+def test_search_below_min_similarity_returns_nothing(index):
+    assert regulations.search("Safety Car", k=3, min_similarity=1.01) == []
 
 
 async def test_tool_returns_citable_articles(index):
@@ -219,7 +260,14 @@ async def test_tool_returns_citable_articles(index):
 
 async def test_tool_clamps_k(index):
     text = await search_regulations("Safety Car", k=50)
-    assert text.count("(similarity") == len(chunks())  # fewer than 10 in this index
+    n_refs = len({c["ref"] for c in chunks()})  # fewer than 10 in this index
+    assert text.count("(similarity") == n_refs
+
+
+async def test_tool_says_when_nothing_matches(index, monkeypatch):
+    monkeypatch.setattr(tool_module, "MIN_SIMILARITY", 1.01)
+    text = await search_regulations("How many points does the winner score?")
+    assert text.startswith("No article of the Sporting Regulations")
 
 
 async def test_tool_empty_query(index):
@@ -229,6 +277,7 @@ async def test_tool_empty_query(index):
 async def test_tool_missing_index(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "REGULATIONS_DB_PATH", tmp_path / "nothing")
     regulations._collection.cache_clear()
+    regulations._index.cache_clear()
     assert "not built" in await search_regulations("Safety Car")
 
 
@@ -236,5 +285,6 @@ async def test_tool_missing_collection(tmp_path, monkeypatch):
     regulations._client(tmp_path)  # creates an empty database, no collection
     monkeypatch.setattr(config, "REGULATIONS_DB_PATH", tmp_path)
     regulations._collection.cache_clear()
+    regulations._index.cache_clear()
     assert "not built" in await search_regulations("Safety Car")
     regulations._collection.cache_clear()

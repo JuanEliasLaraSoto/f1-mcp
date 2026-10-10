@@ -18,12 +18,15 @@ Layout of the PDF text (Section B, Issue 09), as extracted by PyMuPDF:
 """
 
 import json
+import math
 import re
+import unicodedata
+from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import TypedDict
+from typing import Literal, TypedDict
 
 import chromadb
 from chromadb.api import ClientAPI
@@ -258,25 +261,131 @@ def _collection() -> Collection:
         raise IndexNotBuiltError(f"no '{COLLECTION}' collection in {path}") from exc
 
 
-def search(query: str, k: int = 5) -> list[Hit]:
-    """Top-k chunks by cosine similarity, most similar first."""
+# --- Retrieval ----------------------------------------------------------------
+
+Mode = Literal["vector", "bm25", "hybrid"]
+RRF_K = 60  # standard constant from the original RRF paper (Cormack et al., 2009)
+_STOPWORDS = {
+    "a", "an", "and", "any", "are", "as", "at", "be", "by", "can", "do", "does", "for",
+    "from", "get", "has", "have", "how", "if", "in", "is", "it", "its", "may", "must", "of",
+    "on", "or", "so", "that", "the", "their", "they", "this", "to", "what", "when", "which",
+    "who", "will", "with",
+}  # fmt: skip
+
+
+def tokenize(text: str) -> list[str]:
+    """Lowercase alphanumeric words without accents or stopwords, so that
+    "parc fermé" and "parc ferme" produce the same terms."""
+    plain = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return [w for w in re.findall(r"[a-z0-9]+", plain.lower()) if w not in _STOPWORDS]
+
+
+class BM25:
+    """Okapi BM25 over a fixed corpus: exact-term matching that complements the
+    embeddings on rare words, numbers and jargon ("parc ferme", "B5.13", "80km")."""
+
+    def __init__(self, docs: list[str], k1: float = 1.5, b: float = 0.75) -> None:
+        self.k1, self.b = k1, b
+        self.tf = [Counter(tokenize(d)) for d in docs]
+        self.lengths = [sum(tf.values()) for tf in self.tf]
+        self.avgdl = sum(self.lengths) / len(docs) if docs else 0.0
+        df = Counter(term for tf in self.tf for term in tf)
+        n = len(docs)
+        self.idf = {t: math.log(1 + (n - f + 0.5) / (f + 0.5)) for t, f in df.items()}
+
+    def scores(self, query: str) -> list[float]:
+        terms = tokenize(query)
+        out = []
+        for tf, length in zip(self.tf, self.lengths, strict=True):
+            norm = self.k1 * (1 - self.b + self.b * length / self.avgdl)
+            out.append(
+                sum(self.idf[t] * tf[t] * (self.k1 + 1) / (tf[t] + norm) for t in terms if t in tf)
+            )
+        return out
+
+
+def rrf(rankings: list[list[str]], k: int = RRF_K) -> list[str]:
+    """Reciprocal Rank Fusion: score(d) = sum over rankings of 1 / (k + rank(d)).
+    Uses ranks only, so cosine similarities and BM25 scores need no common scale."""
+    scores: dict[str, float] = {}
+    for ranking in rankings:
+        for rank, item in enumerate(ranking, start=1):
+            scores[item] = scores.get(item, 0.0) + 1 / (k + rank)
+    return sorted(scores, key=lambda item: -scores[item])
+
+
+@dataclass(frozen=True)
+class _Index:
+    collection: Collection
+    ids: list[str]
+    docs: dict[str, str]
+    refs: dict[str, str]
+    titles: dict[str, str]
+    bm25: BM25
+
+
+@lru_cache(maxsize=1)
+def _index() -> _Index:
     collection = _collection()
-    k = min(k, collection.count())
-    if k == 0:
+    data = collection.get(include=["documents", "metadatas"])
+    ids = data["ids"]
+    docs = data["documents"] or []
+    metas = data["metadatas"] or []
+    return _Index(
+        collection=collection,
+        ids=ids,
+        docs=dict(zip(ids, docs, strict=True)),
+        refs={i: str(m["ref"]) for i, m in zip(ids, metas, strict=True)},
+        titles={i: str(m["title"]) for i, m in zip(ids, metas, strict=True)},
+        bm25=BM25(docs),
+    )
+
+
+def search(query: str, k: int = 5, mode: Mode = "hybrid", min_similarity: float = 0.0) -> list[Hit]:
+    """Top-k articles for the query, at most one chunk per citation.
+
+    - vector: cosine similarity of the embeddings.
+    - bm25: exact-term ranking.
+    - hybrid: both rankings fused with RRF.
+    `similarity` is always the cosine similarity of the returned chunk. If no chunk
+    reaches `min_similarity`, nothing is returned: the corpus has no answer."""
+    index = _index()
+    n = len(index.ids)
+    if n == 0:
         return []
-    res = collection.query(query_texts=[query], n_results=k)
-    docs = (res["documents"] or [[]])[0]
-    metas = (res["metadatas"] or [[]])[0]
-    dists = (res["distances"] or [[]])[0]
-    return [
-        Hit(
-            ref=str(m["ref"]),
-            title=str(m["title"]),
-            similarity=round(1 - d, 3),
-            text=doc.split("\n", 1)[-1],  # the stored document is "title\ntext"
+    res = index.collection.query(query_texts=[query], n_results=n)
+    vector_ids = res["ids"][0]
+    sims = {i: 1 - d for i, d in zip(vector_ids, (res["distances"] or [[]])[0], strict=True)}
+    if max(sims.values()) < min_similarity:
+        return []
+
+    bm25 = index.bm25.scores(query)
+    order = sorted(range(n), key=lambda i: -bm25[i])
+    bm25_ids = [index.ids[i] for i in order if bm25[i] > 0]
+    ranked = {
+        "vector": vector_ids,
+        "bm25": bm25_ids,
+        "hybrid": rrf([vector_ids, bm25_ids]),
+    }[mode]
+
+    hits: list[Hit] = []
+    seen: set[str] = set()
+    for chunk_id in ranked:
+        ref = index.refs[chunk_id]
+        if ref in seen:
+            continue  # parts of a long article would otherwise fill several slots
+        seen.add(ref)
+        hits.append(
+            Hit(
+                ref=ref,
+                title=index.titles[chunk_id],
+                similarity=round(sims[chunk_id], 3),
+                text=index.docs[chunk_id].split("\n", 1)[-1],  # stored as "title\ntext"
+            )
         )
-        for doc, m, d in zip(docs, metas, dists, strict=True)
-    ]
+        if len(hits) == k:
+            break
+    return hits
 
 
 def build_main() -> None:

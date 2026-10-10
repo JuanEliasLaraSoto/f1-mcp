@@ -42,7 +42,8 @@ regulations say *which rule* applies. A new tool retrieves the relevant articles
 - Index missing or empty → readable message ("regulations index not built"), no traceback.
 - `k` outside 1–10 → clamped.
 - Empty query → readable message, no search.
-- Nothing relevant → still returns top-k; the similarity score lets the model judge.
+- Nothing relevant → below the calibrated similarity threshold the tool says no article
+  matches (see `specs/regulations-eval.md`).
 - The FIA PDF repeats a number (two `B1.5.11` in Issue 09) → unique ids (`B1.5.11~2`),
   same citation.
 
