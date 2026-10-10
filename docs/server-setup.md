@@ -32,3 +32,13 @@ One-time setup of the production host. No secrets in this file.
     echo "DOMAIN=SERVER-IP-WITH-DASHES.sslip.io" > .env
     docker compose up -d --build
     curl https://SERVER-IP-WITH-DASHES.sslip.io/health
+
+## 7. Continuous deployment (GitHub repository secrets)
+The `deploy` job in `.github/workflows/ci.yml` connects as `deploy` and runs
+`git pull` + `docker compose up -d --build`. It needs these secrets:
+
+    VPS_HOST         server IP
+    VPS_USER         deploy
+    VPS_SSH_KEY      private key of a key pair used only by CI (public half in
+                     /home/deploy/.ssh/authorized_keys)
+    VPS_KNOWN_HOSTS  output of `ssh-keyscan SERVER_IP`, so the host key is verified
