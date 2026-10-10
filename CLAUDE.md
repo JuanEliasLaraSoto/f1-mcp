@@ -22,6 +22,8 @@ to LLM clients: lap times, stints, pit stops, results, and derived analysis
 - Run the server: `uv run f1-mcp` (stdio transport)
 - Try it without Claude: `uv run python scripts/try_client.py [TOOL '{json}' | resources | read URI | prompts | prompt NAME '{json}']`
 - Tests: `uv run pytest --cov` (coverage must stay >= 80%)
+- Regulations retrieval eval: `uv run python scripts/eval_regulations.py` (needs the built
+  index; run it before and after any retrieval change)
 - Lint and format: `uv run ruff check . --fix && uv run ruff format .`
 - Types: `uv run mypy` (strict mode)
 - All checks: `uv run pre-commit run --all-files`
@@ -36,8 +38,8 @@ to LLM clients: lap times, stints, pit stops, results, and derived analysis
   `OpenF1Error` with user-readable messages.
 - `analysis.py`: pure functions, no I/O. All the maths lives here.
 - `formatting.py`: lap time, duration and gap formatting.
-- `regulations.py`: regulations RAG. Pure chunking by article number + Chroma index and
-  search. `data/regulations_chunks.json` is committed; the index (`data/chroma/`) is built
+- `regulations.py`: regulations RAG. Pure chunking by article number, Chroma index, BM25,
+  and hybrid search (RRF) with one result per citation. `data/regulations_chunks.json` is committed; the index (`data/chroma/`) is built
   from it with `uv run f1-mcp-build-index` (the Docker image does it at build time).
   Regenerate the JSON from a new FIA PDF with `scripts/extract_regulations.py`.
 - `mcp/server.py`: creates `mcp_server`; imports prompts, resources and tools at the

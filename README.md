@@ -10,8 +10,8 @@ the free [OpenF1](https://openf1.org) API.
 Most API wrappers just return data. This one **computes**: race pace, driver consistency,
 tyre degradation and strategy, so the model can answer questions like *"Was Leclerc really
 faster than Hamilton at Monza?"* with numbers it could not reliably work out on its own.
-It can also **cite the FIA rule** behind an event (a penalty, a Safety Car) through a small
-RAG over the official Sporting Regulations.
+It can also **cite the FIA Sporting Regulations** (race procedures, Safety Car, penalties,
+tyres, parc fermé...) through a small, evaluated RAG over the official PDF.
 
 Every design decision, and why it was made, is logged in [`journal/`](journal/).
 
@@ -108,8 +108,12 @@ memory.
 graph LR
     PDF["FIA PDF<br/>Section B, Issue 09"] -->|"PyMuPDF<br/>scripts/extract_regulations.py"| JSON["regulations_chunks.json<br/>459 chunks, in git"]
     JSON -->|"all-MiniLM-L6-v2<br/>f1-mcp-build-index"| DB[("Chroma<br/>cosine")]
+    JSON --> BM25["BM25<br/>in memory"]
     Q["query (English)"] --> DB
-    DB -->|"top-k + citation"| Model["MCP client model"]
+    Q --> BM25
+    DB --> RRF["Reciprocal Rank Fusion<br/>one result per article"]
+    BM25 --> RRF
+    RRF -->|"top-k + citation"| Model["MCP client model"]
 ```
 
 | Step | Choice | Why |
@@ -119,16 +123,33 @@ graph LR
 | **Size limit** | Chunks over 1,000 characters are split on sentence boundaries | The embedding model reads ~256 word pieces and ignores the rest |
 | **Embeddings** | all-MiniLM-L6-v2 (ONNX, CPU), title + text | Local: no API key, no per-query cost |
 | **Store** | Chroma, persisted to disk; rebuilt from the JSON in the Docker build | Chunks are diffable in git; the image ships with the index and the model |
+| **Retrieval** | Hybrid: vector + BM25 fused with RRF, one result per article | Embeddings miss exact jargon, BM25 misses paraphrases; RRF needs no score scaling |
+| **No answer** | Nothing returned below a top-1 cosine similarity of 0.45 | Calibrated on the eval set; the tool description also lists what Section B does not cover |
 | **Generation** | None in the server | The client model writes the answer from the retrieved articles |
 
 Example: `search_regulations("overtaking under the Safety Car")` returns B5.13.4 *Order of
 Cars Behind the SC* (similarity 0.71), B5.13.2 *During a SC Deployment* (0.67) and
 B5.13.5 *Duration of SC Period* (0.65), each with its text.
 
-Limitations: English queries only (the model translates first); long articles can fill
-several of the k slots with parts of the same article; retrieval quality is checked by
-hand, not yet with a labelled evaluation set. Details in
-[journal 10](journal/10-regulations-rag.md) and [journal 11](journal/11-chunking-the-real-pdf.md).
+### Evaluation
+
+34 hand-labelled questions ([`evals/regulations.jsonl`](evals/regulations.jsonl)): 30 with
+the accepted article numbers, phrased like a user rather than copied from the rules, and 4
+that Section B cannot answer. Run with `uv run python scripts/eval_regulations.py`.
+
+| Mode | Recall@1 | Recall@3 | Recall@5 | MRR |
+|---|---|---|---|---|
+| Vector | 0.50 | 0.77 | 0.80 | 0.66 |
+| BM25 | 0.30 | 0.53 | 0.53 | 0.45 |
+| **Hybrid (default)** | 0.47 | 0.80 | **0.90** | 0.63 |
+
+Limitations: only Section B is indexed, so championship points, technical specs and
+financial rules are out of scope; queries must be in English; vocabulary gaps remain
+("track limits" does not find B1.8.6, which says "leave the track"); answerable and
+unanswerable questions overlap in similarity, so the threshold only catches clear
+misses. The set is small and the numbers are indicative. Details in
+[journal 10](journal/10-regulations-rag.md), [11](journal/11-chunking-the-real-pdf.md) and
+[12](journal/12-retrieval-evaluation.md).
 
 ## MCP primitives
 
@@ -143,7 +164,7 @@ hand, not yet with a labelled evaluation set. Details in
 | `compare_drivers(session_key, driver_a, driver_b)` | Pace, consistency and lap-by-lap duel |
 | `get_stints(session_key, driver_number)` | Stints, compounds and tyre degradation |
 | `race_strategy(session_key)` | Strategy of the whole grid |
-| `search_regulations(query, k?)` | FIA Sporting Regulations articles relevant to a situation (RAG over Chroma) |
+| `search_regulations(query, k?)` | FIA Sporting Regulations articles relevant to a situation (hybrid RAG) |
 | `ping()` | Health check |
 
 **Resources** — read-only data the user can attach, returned as JSON:

@@ -14,3 +14,4 @@ See the [project README](../README.md) for the current state of the project.
 9. [Remote HTTP deployment](09-remote-http-deployment.md)
 10. [Regulations RAG](10-regulations-rag.md)
 11. [Chunking against the real PDF](11-chunking-the-real-pdf.md)
+12. [Retrieval evaluation: hybrid search and a "no answer" threshold](12-retrieval-evaluation.md)
