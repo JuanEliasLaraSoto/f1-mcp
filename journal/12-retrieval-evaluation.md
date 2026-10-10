@@ -1,4 +1,6 @@
-# 12 - Retrieval evaluation: hybrid search and a "no answer" threshold
+# Retrieval evaluation: hybrid search and a "no answer" threshold
+
+**Date:** 2026-10-10
 
 ## Context
 Two spot checks failed: "track limits" did not find B1.8.6, and "points in the sprint"

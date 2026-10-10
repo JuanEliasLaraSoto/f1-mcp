@@ -1,4 +1,6 @@
-# 10 - Regulations RAG
+# Regulations RAG
+
+**Date:** 2026-10-09
 
 ## Context
 OpenF1 says what happened in a session (a penalty, a Safety Car), but not which rule
@@ -27,5 +29,5 @@ is exactly the invented-data failure this project tries to avoid.
 
 ## Consequences
 - Bigger image and more RAM on the VPS (onnxruntime + model).
-- No evaluation yet: next step is a small labelled set of questions with the expected
-  article, measuring recall@k, and comparing against hybrid (BM25 + vector) search.
+- No evaluation at this point; it came later, with a labelled question set, recall@k and
+  a comparison against hybrid search (entry 12).

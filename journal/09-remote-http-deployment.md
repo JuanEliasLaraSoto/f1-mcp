@@ -1,4 +1,6 @@
-# 09 - Remote HTTP deployment
+# Remote HTTP deployment
+
+**Date:** 2026-10-09
 
 ## Context
 With stdio, f1-mcp only works on the machine where it is installed. A public URL lets

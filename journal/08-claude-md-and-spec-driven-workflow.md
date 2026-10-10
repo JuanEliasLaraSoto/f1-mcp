@@ -1,4 +1,6 @@
-# 08 - CLAUDE.md and a spec-driven workflow
+# CLAUDE.md and a spec-driven workflow
+
+**Date:** 2026-10-08
 
 ## Context
 Claude Code reads `CLAUDE.md` at the start of every session as project instructions.

@@ -1,4 +1,6 @@
-# 11 - Chunking against the real PDF
+# Chunking against the real PDF
+
+**Date:** 2026-10-09
 
 ## Context
 The first chunker was written against search-engine snippets of an older issue and
