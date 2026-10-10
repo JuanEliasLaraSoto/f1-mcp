@@ -1,10 +1,10 @@
 """Retrieval over the FIA F1 Sporting Regulations.
 
-Two halves:
+Three parts:
 - Chunking (pure, no I/O): turns the text lines of the PDF into chunks that each
   carry their own citation (e.g. B5.13.2) and the headings above them.
-- Vector search (Chroma): builds a persistent collection from the chunks and
-  queries it by semantic similarity.
+- Index (Chroma): a persistent collection of the chunks with their embeddings.
+- Retrieval: vector similarity and BM25, fused with RRF, one result per citation.
 
 Layout of the PDF text (Section B, Issue 09), as extracted by PyMuPDF:
 - Every page starts with a header block (section name, page number "B47", issue...).

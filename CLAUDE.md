@@ -14,7 +14,8 @@ to LLM clients: lap times, stints, pit stops, results, and derived analysis
   yours; mention them in the summary afterwards.
 - Spec first: for any new feature, write or update a spec in `specs/` (goal, inputs,
   outputs, edge cases, acceptance tests) and get it approved before writing code.
-- Never invent F1 data. Every number must come from OpenF1 through the tools.
+- Never invent F1 data. Every number must come from OpenF1, and every rule from the indexed
+  regulations, through the tools.
 - Everything in English: code, docstrings, tool descriptions, README, journal.
 
 ## Commands
@@ -31,7 +32,7 @@ to LLM clients: lap times, stints, pit stops, results, and derived analysis
 
 ## Architecture (src/f1_mcp/)
 
-- `config.py`: base URL, cache path, retry count.
+- `config.py`: base URL, cache path, retry count, transport (env vars), regulations paths.
 - `openf1.py`: the ONLY module that talks to the network at runtime (the embedding model
   is downloaded once, when the regulations index is built). `get(endpoint, **params)` with
   SQLite cache (empty responses are not cached), exponential backoff on 429, and

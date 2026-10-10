@@ -1,5 +1,6 @@
-"""Regulations RAG: chunking on synthetic text, search and tool on an index built
-with a fake embedding function (no model download, no network)."""
+"""Regulations RAG: chunking on lines that reproduce the real PDF layout, BM25, RRF,
+search modes and the tool, on an index built with a fake embedding function (no model
+download, no network)."""
 
 import hashlib
 

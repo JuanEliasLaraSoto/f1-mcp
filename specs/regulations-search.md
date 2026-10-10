@@ -34,9 +34,10 @@ regulations say *which rule* applies. A new tool retrieves the relevant articles
 - `query`: the question or topic **in English** (the corpus and the embedding model are
   English); the docstring tells the model to translate first.
 - `k`: number of articles, 1–10.
-- Output: one block per chunk: `[B5.13.2] Safety Car (SC) > During a SC Deployment
-  (similarity 0.71)` + text,
-  ordered by similarity. Readable text, like every other tool.
+- Output: one block per article (the best-ranked chunk of each citation):
+  `[B5.13.2] Safety Car (SC) > During a SC Deployment (similarity 0.71)` + text, in
+  hybrid-ranking order (see `specs/regulations-eval.md`). Readable text, like every
+  other tool.
 
 ## Edge cases
 - Index missing or empty → readable message ("regulations index not built"), no traceback.
