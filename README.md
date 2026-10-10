@@ -25,6 +25,9 @@ claude mcp add --transport http f1-mcp https://217-154-7-81.sslip.io/mcp
 
 Health check: https://217-154-7-81.sslip.io/health
 
+Every push to `main` that passes CI is deployed automatically; server setup in
+[`docs/server-setup.md`](docs/server-setup.md).
+
 ## Example conversation
 
 A real exchange in Claude Code with the server connected (excerpt, lightly trimmed):
@@ -188,7 +191,7 @@ graph TD
     Cache[("SQLite cache<br/>~/.cache/f1-mcp")]
     API["api.openf1.org"]
 
-    Host -->|"spawns as subprocess, stdio"| Server
+    Host -->|"stdio (local) or HTTP (deployed)"| Server
     Server --> Tools
     Server --> Resources
     Server --> Prompts
@@ -197,10 +200,13 @@ graph TD
     Resources --> Client
     Client <--> Cache
     Client --> API
-    Tools --> Regs["regulations.py<br/>Chroma + local embeddings"]
+    Tools --> Regs["regulations.py<br/>Chroma + BM25, local embeddings"]
 ```
 
-- **stdio transport**: the host launches the server locally; no network port, no auth.
+- **Two transports, one codebase**: stdio when a host launches the server locally, and
+  stateless streamable HTTP at `/mcp` for the deployed server, chosen by an environment
+  variable ([journal 09](journal/09-remote-http-deployment.md)). The public endpoint has no
+  auth: the data is public, and the risk (abuse exhausting OpenF1's rate limit) is accepted.
 - **SQLite cache**: OpenF1's free tier allows 3 requests/s and 30/min, and a single question
   can chain several tools. Past sessions never change, so responses are cached forever
   ([journal 02](journal/02-sqlite-cache-and-retries.md)).
@@ -255,32 +261,40 @@ uv run python scripts/try_client.py prompts                  # prompts
 ## Development
 
 ```bash
-uv run pytest --cov          # 32 tests, ~95 % coverage (CI fails below 80 %)
+uv run pytest --cov          # tests + coverage (CI fails below 80 %)
 uv run ruff check .          # lint
 uv run ruff format .         # format
 uv run mypy                  # strict type checking
 uv run pre-commit install    # run all of the above before every commit
 ```
 
-Tests never hit the real API: HTTP is mocked with [respx](https://lundberg.github.io/respx/)
-and each test gets an empty temporary cache. Resources, prompts and tools are also tested
-through a real in-memory MCP client/server session. CI runs tests, ruff and mypy on every push.
+Tests never touch the network: OpenF1 is mocked with [respx](https://lundberg.github.io/respx/)
+with an empty temporary cache per test, and the regulations search runs on an index built
+with a fake embedding function. Resources, prompts and tools are also tested through a real
+in-memory MCP client/server session. CI runs tests, ruff and mypy on every push and, when
+they pass on `main`, deploys to the VPS over SSH and checks `/health`.
 
 ## Project layout
 
 ```
 src/f1_mcp/
-├── config.py          API URL, cache path, retries
+├── config.py          API URL, cache and index paths, retries, transport
 ├── openf1.py          HTTP client: SQLite cache, retries, OpenF1Error
 ├── analysis.py        pure maths: clean laps, pace, residuals, degradation
 ├── formatting.py      lap times and gaps
-├── regulations.py     regulations RAG: chunking and Chroma search
+├── regulations.py     regulations RAG: chunking, Chroma index, BM25, hybrid search
 └── mcp/
     ├── server.py      creates the MCPServer and registers everything
     ├── errors.py      friendly_errors decorator
     ├── resources.py
     ├── prompts.py
     └── tools/         sessions.py · laps.py · strategy.py · regulations.py
+
+data/       regulations chunks (JSON, committed); the Chroma index is built from them
+evals/      labelled questions for the regulations retrieval evaluation
+scripts/    try_client.py · extract_regulations.py · eval_regulations.py
+specs/      feature specs, written and approved before the code
+journal/    numbered decision log
 ```
 
 ## License
