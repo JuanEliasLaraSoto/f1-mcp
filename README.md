@@ -211,8 +211,36 @@ uv run pre-commit install    # run all of the above before every commit
 
 Tests never touch the network: OpenF1 is mocked with [respx](https://lundberg.github.io/respx/)
 and each test gets an empty temporary cache. Resources, prompts and tools are also tested through a real
-in-memory MCP client/server session. CI runs tests, ruff and mypy on every push and, when
-they pass on `main`, deploys to the VPS over SSH and checks `/health`.
+in-memory MCP client/server session.
+
+## CI/CD
+
+```mermaid
+graph LR
+    Push["push / pull request"]
+    Tests["tests<br/>pytest + coverage ≥ 80 %"]
+    Lint["lint<br/>ruff check · ruff format · mypy"]
+    Deploy["deploy<br/>SSH → git pull → docker compose up --build"]
+    Health["health check<br/>GET /health"]
+
+    Push --> Tests
+    Push --> Lint
+    Tests -->|"push to main only"| Deploy
+    Lint -->|"push to main only"| Deploy
+    Deploy --> Health
+```
+
+One GitHub Actions workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+
+- **`tests`** and **`lint`** run in parallel on every push and pull request, with the same
+  locked dependencies (`uv sync --locked`). They need no network or OpenF1 access.
+- **`deploy`** runs only on a push to `main` and only after both pass. It connects to the
+  VPS over SSH, pulls the code, rebuilds the container and prunes old images. A
+  `concurrency` group keeps two deploys from overlapping.
+- **Health check**: the job polls `/health` for up to a minute and fails if the server does
+  not come back up, so a broken deploy shows as a red run.
+- The SSH key and `known_hosts` are GitHub secrets
+  ([server setup, section 7](docs/server-setup.md)).
 
 ## Project layout
 
