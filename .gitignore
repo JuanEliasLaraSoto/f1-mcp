@@ -9,9 +9,6 @@ wheels/
 # Virtual environments
 .venv
 
-# Regulations RAG: the PDF and the built index are generated, the JSON chunks are committed
-data/*.pdf
-data/chroma/
 
 # Test coverage data
 .coverage

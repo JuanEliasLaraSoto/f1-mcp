@@ -19,8 +19,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --all-groups
 
-      # Tests never call the real OpenF1 API (respx + temporary cache) nor download
-      # the embedding model, so CI depends neither on the network nor on rate limits.
+      # Tests never call the real OpenF1 API (respx + temporary cache), so CI
+      # depends neither on the network nor on OpenF1's rate limit.
       - name: Run tests
         run: uv run pytest --cov
 

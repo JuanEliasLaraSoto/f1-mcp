@@ -17,7 +17,6 @@ TOOLS = {
     "get_stints",
     "get_results",
     "race_strategy",
-    "search_regulations",
 }
 
 
