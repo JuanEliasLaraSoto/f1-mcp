@@ -10,6 +10,8 @@ the free [OpenF1](https://openf1.org) API.
 Most API wrappers just return data. This one **computes**: race pace, driver consistency,
 tyre degradation and strategy, so the model can answer questions like *"Was Leclerc really
 faster than Hamilton at Monza?"* with numbers it could not reliably work out on its own.
+It can also **cite the FIA Sporting Regulations** (race procedures, Safety Car, penalties,
+tyres, parc fermé...) through a small, evaluated RAG over the official PDF.
 
 Every design decision, and why it was made, is logged in [`journal/`](journal/).
 
@@ -99,6 +101,59 @@ for example, Norris' 5.9 s stop next to Piastri's 1.9 s.
 | **Tyre degradation** | Slope of lap time vs. lap within a stint, reported raw and corrected for fuel burn (~0.055 s/lap). |
 | **Strategy** | Compound sequence and pit stops for every driver, most common strategies, fastest stop. |
 
+## Regulations search (RAG)
+
+OpenF1 says *what* happened; the FIA Sporting Regulations say *which rule* applies.
+`search_regulations` lets the model look the rule up and cite it instead of answering from
+memory.
+
+```mermaid
+graph LR
+    PDF["FIA PDF<br/>Section B, Issue 09"] -->|"PyMuPDF<br/>scripts/extract_regulations.py"| JSON["regulations_chunks.json<br/>459 chunks, in git"]
+    JSON -->|"all-MiniLM-L6-v2<br/>f1-mcp-build-index"| DB[("Chroma<br/>cosine")]
+    JSON --> BM25["BM25<br/>in memory"]
+    Q["query (English)"] --> DB
+    Q --> BM25
+    DB --> RRF["Reciprocal Rank Fusion<br/>one result per article"]
+    BM25 --> RRF
+    RRF -->|"top-k + citation"| Model["MCP client model"]
+```
+
+| Step | Choice | Why |
+|---|---|---|
+| **Chunking** | One chunk per numbered sub-article (`B5.13.2`), titled with its heading path (`Safety Car (SC) > During a SC Deployment`) | The regulations are already split into self-contained units, and the number is the citation |
+| **Cleaning** | Drops page headers, the table of contents and Appendices B3–B5 | Appendix B5 holds the 2027 changes under the same article numbers |
+| **Size limit** | Chunks over 1,000 characters are split on sentence boundaries | The embedding model reads ~256 word pieces and ignores the rest |
+| **Embeddings** | all-MiniLM-L6-v2 (ONNX, CPU), title + text | Local: no API key, no per-query cost |
+| **Store** | Chroma, persisted to disk; rebuilt from the JSON in the Docker build | Chunks are diffable in git; the image ships with the index and the model |
+| **Retrieval** | Hybrid: vector + BM25 fused with RRF, one result per article | Embeddings miss exact jargon, BM25 misses paraphrases; RRF needs no score scaling |
+| **No answer** | Nothing returned below a top-1 cosine similarity of 0.45 | Calibrated on the eval set; the tool description also lists what Section B does not cover |
+| **Generation** | None in the server | The client model writes the answer from the retrieved articles |
+
+Example: `search_regulations("overtaking under the Safety Car")` returns B5.13.4 *Order of
+Cars Behind the SC* (similarity 0.71), B5.13.2 *During a SC Deployment* (0.67) and
+B5.13.5 *Duration of SC Period* (0.65), each with its text.
+
+### Evaluation
+
+34 hand-labelled questions ([`evals/regulations.jsonl`](evals/regulations.jsonl)): 30 with
+the accepted article numbers, phrased like a user rather than copied from the rules, and 4
+that Section B cannot answer. Run with `uv run python scripts/eval_regulations.py`.
+
+| Mode | Recall@1 | Recall@3 | Recall@5 | MRR |
+|---|---|---|---|---|
+| Vector | 0.50 | 0.77 | 0.80 | 0.66 |
+| BM25 | 0.30 | 0.53 | 0.53 | 0.45 |
+| **Hybrid (default)** | 0.47 | 0.80 | **0.90** | 0.63 |
+
+Limitations: only Section B is indexed, so championship points, technical specs and
+financial rules are out of scope; queries must be in English; vocabulary gaps remain
+("track limits" does not find B1.8.6, which says "leave the track"); answerable and
+unanswerable questions overlap in similarity, so the threshold only catches clear
+misses. The set is small and the numbers are indicative. Details in
+[journal 10](journal/10-regulations-rag.md), [11](journal/11-chunking-the-real-pdf.md) and
+[12](journal/12-retrieval-evaluation.md).
+
 ## MCP primitives
 
 **Tools** — chosen by the model:
@@ -112,6 +167,7 @@ for example, Norris' 5.9 s stop next to Piastri's 1.9 s.
 | `compare_drivers(session_key, driver_a, driver_b)` | Pace, consistency and lap-by-lap duel |
 | `get_stints(session_key, driver_number)` | Stints, compounds and tyre degradation |
 | `race_strategy(session_key)` | Strategy of the whole grid |
+| `search_regulations(query, k?)` | FIA Sporting Regulations articles relevant to a situation (hybrid RAG) |
 | `ping()` | Health check |
 
 **Resources** — read-only data the user can attach, returned as JSON:
@@ -144,6 +200,7 @@ graph TD
     Resources --> Client
     Client <--> Cache
     Client --> API
+    Tools --> Regs["regulations.py<br/>Chroma + BM25, local embeddings"]
 ```
 
 - **Two transports, one codebase**: stdio when a host launches the server locally, and
@@ -164,6 +221,7 @@ Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
 git clone https://github.com/JuanEliasLaraSoto/f1-mcp.git
 cd f1-mcp
 uv sync
+uv run f1-mcp-build-index   # regulations index (downloads the embedding model once, ~80 MB)
 ```
 
 Register it with Claude Code:
@@ -195,6 +253,7 @@ the same way Claude would:
 ```bash
 uv run python scripts/try_client.py                          # tools and their JSON schemas
 uv run python scripts/try_client.py compare_drivers '{"session_key": 9912, "driver_a": 16, "driver_b": 44}'
+uv run python scripts/try_client.py search_regulations '{"query": "overtaking under the Safety Car"}'
 uv run python scripts/try_client.py resources                # resources
 uv run python scripts/try_client.py prompts                  # prompts
 ```
@@ -210,7 +269,8 @@ uv run pre-commit install    # run all of the above before every commit
 ```
 
 Tests never touch the network: OpenF1 is mocked with [respx](https://lundberg.github.io/respx/)
-and each test gets an empty temporary cache. Resources, prompts and tools are also tested through a real
+with an empty temporary cache per test, and the regulations search runs on an index built
+with a fake embedding function. Resources, prompts and tools are also tested through a real
 in-memory MCP client/server session.
 
 ## CI/CD
@@ -246,18 +306,21 @@ One GitHub Actions workflow ([`.github/workflows/ci.yml`](.github/workflows/ci.y
 
 ```
 src/f1_mcp/
-├── config.py          API URL, cache path, retries, transport
+├── config.py          API URL, cache and index paths, retries, transport
 ├── openf1.py          HTTP client: SQLite cache, retries, OpenF1Error
 ├── analysis.py        pure maths: clean laps, pace, residuals, degradation
 ├── formatting.py      lap times and gaps
+├── regulations.py     regulations RAG: chunking, Chroma index, BM25, hybrid search
 └── mcp/
     ├── server.py      creates the MCPServer and registers everything
     ├── errors.py      friendly_errors decorator
     ├── resources.py
     ├── prompts.py
-    └── tools/         sessions.py · laps.py · strategy.py
+    └── tools/         sessions.py · laps.py · strategy.py · regulations.py
 
-scripts/    try_client.py: a small MCP client to call the server without Claude
+data/       regulations chunks (JSON, committed); the Chroma index is built from them
+evals/      labelled questions for the regulations retrieval evaluation
+scripts/    try_client.py · extract_regulations.py · eval_regulations.py
 specs/      feature specs, written and approved before the code
 journal/    numbered decision log
 ```

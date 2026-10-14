@@ -4,6 +4,10 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
 RUN uv sync --locked --no-dev
+# Build the regulations index at image build time: this also downloads and bakes in
+# Chroma's embedding model, so the server never fetches it at runtime
+COPY data/regulations_chunks.json ./data/
+RUN /app/.venv/bin/f1-mcp-build-index
 ENV F1_MCP_TRANSPORT=http F1_MCP_HOST=0.0.0.0 F1_MCP_PORT=8000
 EXPOSE 8000
 CMD ["/app/.venv/bin/f1-mcp"]

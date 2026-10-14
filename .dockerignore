@@ -2,6 +2,7 @@
 .venv
 .github
 tests
+evals
 journal
 specs
 scripts
@@ -9,3 +10,5 @@ scripts
 .mypy_cache
 .ruff_cache
 .pytest_cache
+data/*.pdf
+data/chroma

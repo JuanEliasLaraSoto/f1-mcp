@@ -25,4 +25,4 @@ async def health(request: Request) -> JSONResponse:
 # Importing these modules registers their tools, resources and prompts. This goes
 # at the bottom because they all import mcp_server from this file: it must exist first.
 from f1_mcp.mcp import prompts, resources  # noqa: E402, F401
-from f1_mcp.mcp.tools import laps, sessions, strategy  # noqa: E402, F401
+from f1_mcp.mcp.tools import laps, regulations, sessions, strategy  # noqa: E402, F401
