@@ -4,7 +4,7 @@
 
 ## Problem
 
-OpenF1's free tier allows 3 requests/second and 30/minute. A single question to Claude can
+OpenF1's free tier allows 3 requests/second and 30/minute, a single question to Claude can
 chain several tools (list_sessions → list_drivers → compare_drivers → get_stints), each
 making 1–3 requests, so a normal conversation hits the limit.
 
