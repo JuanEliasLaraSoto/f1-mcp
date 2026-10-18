@@ -6,8 +6,7 @@ to LLM clients: lap times, stints, pit stops, results, and derived analysis
 
 ## How to work in this project
 
-- The owner (Juan) is learning AI engineering with this project and must be able to
-  defend every decision in a technical interview. Before implementing a change, explain
+- The owner (Juan) is learning AI engineering, before implementing a change, explain
   what will change, why, and the alternatives with their trade-offs. Wait for approval.
 - Architecture decisions (libraries, transport, deployment, data model) are Juan's call.
   Present options neutrally. Implementation details (names, types, test structure) are
